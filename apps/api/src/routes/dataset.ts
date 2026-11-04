@@ -1,9 +1,9 @@
-// Owner: R1. Task F-9: temporary dataset adapter.
+// Owner: R1. Task F-9: fallback dataset adapter for fixture personas.
 //
-// TEMPORARY until R2 ships getMerchantDataset() in packages/paypal/src/sources.
-// It returns the contracts example payload so the routes can be exercised end
-// to end. The loader is injected into buildApp() so tests can supply a richer
-// dataset and so the swap to R2's real module is a one-line change.
+// server.ts now loads live_sandbox through R2's getMerchantDataset(); the four
+// fixture personas still use this contracts example until R2's scripts/seed.ts
+// and fixtures land. The loader is injected into buildApp() so tests can supply
+// a richer dataset.
 import type {
   BalanceSource,
   MerchantId,
@@ -18,9 +18,9 @@ import {
 } from "@surplus/contracts/examples";
 
 /**
- * Shape that R2's getMerchantDataset(merchantId) will return.
- * TODO(R2): replace this local interface with the exported type from
- * packages/paypal/src/sources once F-2/F-3/F-4 land on main.
+ * Shape returned by R2's getMerchantDataset(merchantId). Kept structurally
+ * compatible so the live loader can be injected without coupling routes to the
+ * PayPal source package's internal types.
  */
 export interface MerchantDataset {
   transactions: NormalizedTransaction[];
