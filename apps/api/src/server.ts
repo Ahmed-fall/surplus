@@ -1,13 +1,17 @@
 // Owner: R1. Task C-5/C-12: API process entry point.
-// Wires the real PaypalClient (when credentials exist), seeds on boot, mounts
-// the protected admin reset, then starts Express. The dataset loader stays on
-// the example adapter until R2's SQLite store lands (marked TEMPORARY).
+// Wires the real PaypalClient (when credentials exist), the SQLite-backed
+// webhook store, R2's live dataset loader, R4's grounded advisor, the
+// seed-on-boot reset, and then starts Express.
 import { PaypalClient } from "@surplus/paypal";
+import { getMerchantDataset } from "@surplus/paypal/sources";
 import { buildApp } from "./app";
-import { exampleDatasetLoader } from "./routes/dataset";
-import { seedOnBoot } from "./routes/seed";
+import { runAdvisorTurn } from "./agent/advisor";
+import type { DatasetLoader } from "./routes/dataset";
+import { asOfFor, exampleDatasetLoader } from "./routes/dataset";
+import { EMPTY_LIVE_DATASET, seedOnBoot } from "./routes/seed";
 import { SseHub } from "./routes/sseHub";
-import { InMemoryWebhookStore } from "./routes/webhookStore";
+import { SqliteWebhookStore } from "./routes/sqliteWebhookStore";
+import { LIVE_MERCHANT } from "./routes/webhooks";
 
 try {
   process.loadEnvFile(new URL("../../../.env", import.meta.url));
@@ -19,7 +23,7 @@ const host = process.env["HOST"] ?? "127.0.0.1";
 const port = Number(process.env["PORT"] ?? 4000);
 
 const hub = new SseHub();
-const store = new InMemoryWebhookStore();
+const store = new SqliteWebhookStore();
 seedOnBoot(store);
 
 const clientId = process.env["PAYPAL_CLIENT_ID"];
@@ -33,8 +37,33 @@ const client =
     ? new PaypalClient({ clientId, clientSecret, baseUrl: apiBase })
     : undefined;
 
+/** One lazy live sync per process; never copies fixture data into live_sandbox. */
+let liveSync: Promise<void> | undefined;
+function syncLive(): Promise<void> {
+  if (client === undefined) return Promise.resolve();
+  liveSync ??= getMerchantDataset(LIVE_MERCHANT, asOfFor(LIVE_MERCHANT), client)
+    .then((dataset) => {
+      store.hydrate(LIVE_MERCHANT, dataset);
+    })
+    .catch(() => {
+      liveSync = undefined;
+    });
+  return liveSync;
+}
+
+const loadDataset: DatasetLoader = async (merchantId) => {
+  if (merchantId !== LIVE_MERCHANT) {
+    return store.getDataset(merchantId) ?? exampleDatasetLoader(merchantId);
+  }
+  const local = store.getDataset(merchantId);
+  if (local !== undefined && local.transactions.length > 0) return local;
+  await syncLive();
+  return store.getDataset(LIVE_MERCHANT) ?? local ?? EMPTY_LIVE_DATASET;
+};
+
 const app = buildApp({
-  loadDataset: (merchantId) => store.getDataset(merchantId) ?? exampleDatasetLoader(merchantId),
+  loadDataset,
+  runAdvisorTurn,
   sseHub: hub,
   webhook:
     client !== undefined && webhookId !== undefined
@@ -46,6 +75,7 @@ const app = buildApp({
   admin: {
     token: adminResetToken,
     reset: async () => {
+      liveSync = undefined;
       seedOnBoot(store);
     },
   },

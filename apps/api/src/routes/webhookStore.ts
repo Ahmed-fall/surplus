@@ -99,6 +99,8 @@ export interface ApplyEventInput {
   merchantId: MerchantId;
   transaction: NormalizedTransaction;
   deltaNetCents: number;
+  /** Event type is persisted for auditability; the in-memory store ignores it. */
+  type?: string;
 }
 
 export type IgnoreReason = "non_usd" | "not_completed";
@@ -109,12 +111,21 @@ export interface IgnoreEventInput {
   reason: IgnoreReason;
 }
 
+/** Persistence contract shared by the in-memory and SQLite implementations. */
+export interface WebhookStore {
+  seed(merchantId: MerchantId, dataset: MerchantDataset): void;
+  hasEvent(eventId: string): boolean;
+  applyEvent(input: ApplyEventInput): boolean;
+  ignoreEvent(input: IgnoreEventInput): boolean;
+  getDataset(merchantId: MerchantId): MerchantDataset | undefined;
+}
+
 /**
  * TEMPORARY in-memory store. TODO(R2): replace with better-sqlite3 WAL tables.
  * `applyEvent` is atomic by construction (single synchronous mutation), matching
  * the "one DB transaction" requirement of C-5.
  */
-export class InMemoryWebhookStore {
+export class InMemoryWebhookStore implements WebhookStore {
   readonly #merchants = new Map<MerchantId, MerchantState>();
 
   seed(merchantId: MerchantId, dataset: MerchantDataset): void {

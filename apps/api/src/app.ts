@@ -10,6 +10,7 @@ import type {
   AdvisorResponse,
   MerchantId,
   NormalizedTransaction,
+  RiskProfile,
   ScenarioInput,
 } from "@surplus/contracts";
 import { DISCLAIMER_ID_V1, DISCLAIMER_TEXT_V1 } from "@surplus/contracts";
@@ -40,6 +41,8 @@ export interface BuildAppOptions {
     merchantId: MerchantId;
     dataset: MerchantDataset;
     asOf: string;
+    monthlyObligationsCents?: number;
+    riskProfile?: RiskProfile;
   }) => Promise<AdvisorResponse>;
   /** SSE hub shared by the events route and the webhook controller. */
   sseHub?: SseHub;
@@ -291,6 +294,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
             merchantId: body.merchantId,
             dataset,
             asOf,
+            monthlyObligationsCents: body.monthlyObligationsCents,
+            riskProfile: body.riskProfile,
           })
         : advisorStub(body.merchantId);
       res.status(200).json(response);
