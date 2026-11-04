@@ -6,7 +6,11 @@
 // and is built up only by verified webhooks.
 import type { MerchantId } from "@surplus/contracts";
 import type { MerchantDataset } from "./dataset";
-import type { InMemoryWebhookStore } from "./webhookStore";
+
+/** Minimal seeding surface shared by the in-memory and SQLite stores. */
+export interface SeedableStore {
+  seed(merchantId: MerchantId, dataset: MerchantDataset): void;
+}
 
 export const SEEDED_MERCHANTS: readonly MerchantId[] = ["live_sandbox"];
 
@@ -24,10 +28,12 @@ export const EMPTY_LIVE_DATASET: MerchantDataset = {
 };
 
 /**
- * Seeds every merchant the in-memory store serves.
- * TODO(R2): call the real seed.ts (fixtures + live baseline) instead.
+ * Seeds every merchant the store serves.
+ * The live merchant intentionally starts empty: fixture rows and fixture
+ * balances must never be mixed into live PayPal data.
+ * TODO(R2): add the four fixture personas once scripts/seed.ts lands.
  */
-export function seedOnBoot(store: InMemoryWebhookStore): void {
+export function seedOnBoot(store: SeedableStore): void {
   for (const merchantId of SEEDED_MERCHANTS) {
     store.seed(merchantId, {
       ...EMPTY_LIVE_DATASET,

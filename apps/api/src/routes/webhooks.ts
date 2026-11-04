@@ -12,7 +12,7 @@ import type { AppEvent, MerchantId } from "@surplus/contracts";
 import { computeAllocationPlan, computeCashFlowSummary, computeSurplus } from "@surplus/engine";
 import type { SseHub } from "./sseHub";
 import { EMPTY_DISPUTES, hashPayerRef, normalizeCapture, normalizeRefund } from "./webhookStore";
-import type { InMemoryWebhookStore } from "./webhookStore";
+import type { WebhookStore } from "./webhookStore";
 
 /** Every live capture belongs to the single demo merchant. */
 export const LIVE_MERCHANT: MerchantId = "live_sandbox";
@@ -27,7 +27,7 @@ export interface WebhookVerifierHeaders {
 
 export interface WebhookDeps {
   verify: (headers: WebhookVerifierHeaders, rawBody: string) => Promise<boolean>;
-  store: InMemoryWebhookStore;
+  store: WebhookStore;
   hub: SseHub;
   now?: () => Date;
 }
@@ -225,6 +225,7 @@ export function createWebhookHandler(deps: WebhookDeps): WebhookHandler {
       merchantId,
       transaction,
       deltaNetCents: transaction.netCents,
+      type: appEventType,
     });
     if (!applied) {
       res.status(200).json({ status: "duplicate" });
