@@ -52,7 +52,12 @@ export default function PayMerchantPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: id }),
       });
-      if (!res.ok) throw new Error(`capture failed: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const code = typeof body.code === "string" ? body.code : "";
+        const msg = typeof body.message === "string" ? body.message : "";
+        throw new Error(`capture failed (${res.status}): ${code} ${msg}`.trim());
+      }
       const data = (await res.json()) as { status: string; captureId: string };
       setStatus(`COMPLETED: ${data.captureId}`);
       setApprovalUrl(null);

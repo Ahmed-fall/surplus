@@ -32,6 +32,8 @@ import { SseHub } from "./routes/sseHub";
 import type { WebhookDeps } from "./routes/webhooks";
 import { createWebhookHandler } from "./routes/webhooks";
 import { createAdminResetHandler } from "./routes/admin";
+import { createDemoCheckoutHandlers } from "./routes/demoCheckout";
+import type { PayPalOrdersClient } from "@surplus/paypal";
 
 export interface BuildAppOptions {
   /** R2's getMerchantDataset(merchantId) once it lands on main. */
@@ -50,6 +52,8 @@ export interface BuildAppOptions {
   webhook?: Pick<WebhookDeps, "verify" | "store" | "now">;
   /** Enables POST /api/admin/reset when a non-empty token is supplied. */
   admin?: { token: string; reset: () => void | Promise<void> };
+  /** PayPal Orders v2 client for the demo checkout flow (C-10). */
+  orders?: PayPalOrdersClient;
   webOrigin?: string;
 }
 
@@ -301,6 +305,12 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       res.status(200).json(response);
     }),
   );
+
+  if (options.orders !== undefined) {
+    const demoCheckout = createDemoCheckoutHandlers({ orders: options.orders });
+    app.post("/api/demo/checkout/create", handle(demoCheckout.create));
+    app.post("/api/demo/checkout/capture", handle(demoCheckout.capture));
+  }
 
   app.use((_req, res) => {
     res.status(404).json({ error: "not_found" });
