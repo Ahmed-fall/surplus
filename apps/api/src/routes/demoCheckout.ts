@@ -50,8 +50,13 @@ export function createDemoCheckoutHandlers(deps: DemoCheckoutDeps): {
     try {
       const captureResult = await orders.captureOrder(parsed.data.orderId);
       res.status(200).json(captureResult);
-    } catch {
-      res.status(502).json({ error: "paypal_error" });
+    } catch (err) {
+      const code =
+        typeof err === "object" && err !== null && "code" in err
+          ? String((err as { code: unknown }).code)
+          : "UNKNOWN";
+      const message = err instanceof Error ? err.message : "capture failed";
+      res.status(502).json({ error: "paypal_error", code, message });
     }
   };
 
