@@ -6,6 +6,8 @@ import { PaypalClient } from "@surplus/paypal";
 import { getMerchantDataset } from "@surplus/paypal/sources";
 import { buildApp } from "./app";
 import { runAdvisorTurn } from "./agent/advisor";
+import type { GetMcpTools } from "./agent/advisor";
+import { connectPaypalMcp } from "./agent/mcpClient";
 import type { DatasetLoader } from "./routes/dataset";
 import { asOfFor, exampleDatasetLoader } from "./routes/dataset";
 import { EMPTY_LIVE_DATASET, seedOnBoot } from "./routes/seed";
@@ -37,6 +39,18 @@ const client =
     ? new PaypalClient({ clientId, clientSecret, baseUrl: apiBase })
     : undefined;
 
+const getMcpTools: GetMcpTools | undefined =
+  client === undefined
+    ? undefined
+    : async () => {
+        try {
+          const accessToken = await client.getAccessToken();
+          return await connectPaypalMcp(accessToken);
+        } catch {
+          return undefined;
+        }
+      };
+
 /** One lazy live sync per process; never copies fixture data into live_sandbox. */
 let liveSync: Promise<void> | undefined;
 function syncLive(): Promise<void> {
@@ -63,7 +77,8 @@ const loadDataset: DatasetLoader = async (merchantId) => {
 
 const app = buildApp({
   loadDataset,
-  runAdvisorTurn,
+  runAdvisorTurn: (input) =>
+    getMcpTools === undefined ? runAdvisorTurn(input) : runAdvisorTurn(input, { getMcpTools }),
   sseHub: hub,
   webhook:
     client !== undefined && webhookId !== undefined

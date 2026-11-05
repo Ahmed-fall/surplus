@@ -22,7 +22,6 @@ const scenarioParameters = z.object({
 const SAFE_PAYPAL_TOOL_NAMES = [
   "paypal_mcp_list_transactions",
   "paypal_mcp_list_disputes",
-  "paypal_mcp_get_merchant_insights",
 ] as const;
 
 /** Engine-backed tools are deterministic. The model receives their outputs; it never performs the math. */
