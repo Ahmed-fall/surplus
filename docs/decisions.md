@@ -415,4 +415,13 @@ Requests to other owners:
 - Removed obsolete remote branches that are fully superseded on main: `r1/c-12-render-deploy`, `r1/c-5-webhooks-sse`, `r1/k-2-monorepo-scaffold`. C-12's `render.yaml` is identical on main and its other files are older than main's H-2/C-5 versions, so merging it would have regressed security headers and live sync.
 - Still manual and external (needs Render dashboard credentials): create the Blueprint, set the secrets plus `WEB_ORIGIN`/`NEXT_PUBLIC_API_URL`, then verify the hosted `/api/health`, a `SUCCESS` webhook verification, and an SSE update under 10 seconds.
 
+### 2026-11-05 H-3 MCP tool-loop wiring (R1)
+
+- Cross-owner request opened as issue #26 for R4-owned `apps/api/src/agent/**`; R4 or R3 written approval is still pending, so this branch remains draft and will not carry `ownership-approved` until that comment exists.
+- `runAdvisorTurn` now accepts an injected lazy `getMcpTools`. MCP is attempted only for `live_sandbox`; the four fixture personas never call it.
+- A live MCP session is used for one bounded `generateText` tool loop (`maxSteps: 5`, primary then fallback, 7s per attempt, abortable). A connection or tool-loop failure falls through to internal tools only and never fails the request. The session is closed before narrative generation on every path.
+- `toolTrace` entries are recorded by wrapping each tool's `execute`: one entry per successful call, real elapsed milliseconds, and only numeric or short-enum summaries. MCP outputs are still sanitized to page counts by `sanitizeMcpOutput`.
+- `createAdvisorTools` now filters the model registry to the frozen contract allowlist. `paypal_mcp_get_merchant_insights` remains a discovery requirement in `connectPaypalMcp` but is not exposed to the model or trace.
+- Sanitized MCP summaries are passed to the draft generator as `externalToolSummaries` and to the grounding validator as allowed tool outputs. No PayPal free text reaches the prompt, validator, or response.
+
 
