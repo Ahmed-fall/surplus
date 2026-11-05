@@ -149,21 +149,30 @@ function productionToolLoop({
 }: AdvisorToolLoopInput): Promise<void> {
   const google = createGoogleGenerativeAI({ apiKey: process.env[ADVISOR_ENV_KEYS.google] });
   const openai = createOpenAI({ apiKey: process.env[ADVISOR_ENV_KEYS.openai] });
+  const model = provider === "primary" ? google(PRIMARY_MODEL) : openai(FALLBACK_MODEL);
+  const paypalToolNames = ["paypal_mcp_list_transactions", "paypal_mcp_list_disputes"] as const;
 
-  return generateText({
-    model: provider === "primary" ? google(PRIMARY_MODEL) : openai(FALLBACK_MODEL),
-    tools,
-    maxSteps: TOOL_LOOP_MAX_STEPS,
-    abortSignal,
-    system: [
-      "You are gathering read-only PayPal evidence for an educational cash-flow advisor.",
-      "Call only the provided read-only tools.",
-      "Do not calculate, advise, or write narrative in this step.",
-      "Use the merchant question only to choose which tools to call.",
-    ].join("\n"),
-    prompt:
-      question ?? "Gather cash-flow, surplus, allocation-plan, and PayPal page-count evidence.",
-  }).then(() => undefined);
+  return paypalToolNames
+    .reduce<Promise<void>>(async (previous, toolName) => {
+      await previous;
+      const selectedTool = tools[toolName];
+      if (selectedTool === undefined) return;
+      await generateText({
+        model,
+        tools: { [toolName]: selectedTool },
+        toolChoice: { type: "tool", toolName },
+        maxSteps: TOOL_LOOP_MAX_STEPS,
+        abortSignal,
+        system: [
+          "You are gathering read-only PayPal evidence for an educational cash-flow advisor.",
+          "Call the required provided tool exactly once.",
+          "Do not calculate, advise, or write narrative in this step.",
+          "Never copy PayPal free text into your response.",
+        ].join("\n"),
+        prompt: question ?? `Gather the sanitized ${toolName} page-count evidence.`,
+      });
+    }, Promise.resolve())
+    .then(() => undefined);
 }
 
 interface TracedTools {
@@ -243,7 +252,7 @@ function traceTools(tools: AdvisorToolSet): TracedTools {
         const startedAt = Date.now();
         const result = await execute(args as never, options);
         if (isTraceableToolName(name)) {
-          const durationMs = Math.max(0, Date.now() - startedAt);
+          const durationMs = Math.max(1, Date.now() - startedAt);
           toolTrace.push({
             toolName: name,
             durationMs,
