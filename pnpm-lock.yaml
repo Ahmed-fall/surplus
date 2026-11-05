@@ -130,7 +130,11 @@ importers:
         specifier: ^9.6.0
         version: 9.6.0
 
-  tests/e2e: {}
+  tests/e2e:
+    dependencies:
+      '@surplus/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
 
 packages:
 
