@@ -424,4 +424,41 @@ Requests to other owners:
 - `createAdvisorTools` now filters the model registry to the frozen contract allowlist. `paypal_mcp_get_merchant_insights` remains a discovery requirement in `connectPaypalMcp` but is not exposed to the model or trace.
 - Sanitized MCP summaries are passed to the draft generator as `externalToolSummaries` and to the grounding validator as allowed tool outputs. No PayPal free text reaches the prompt, validator, or response.
 
+### MCP live verification
+
+**Date:** 2026-11-05 (verification script prepared; live capture not run yet)
+**Owner:** R2 (H-8)
+**Status:** pending live execution. C-10 `/pay-merchant` is not implemented in this
+workspace and no Sandbox `.env` or hosted URL is available to this agent, so no
+capture was created and no live MCP result is claimed.
+
+**Discovered tool names (live):** not observed yet. The client allowlist requires
+`list_transactions`, `list_disputes` and `get_merchant_insights`; R4's offline tests
+and local stdio fixture cover the boundary, but live discovery must be rerun with the
+command below.
+
+**New $1,200 Sandbox payment visible through `list_transactions`:** not tested yet.
+No count is recorded because no count was observed.
+
+**Indexing delay observed:** none observed yet. FACT-01 says Transaction Search can
+lag 3+ hours. A miss immediately after capture is expected; record the miss and rerun
+later instead of hiding it.
+
+**Runbook after C-10 works on the hosted URL:**
+
+1. Create one $1,200.00 Sandbox capture on `/pay-merchant`; confirm the verified
+   webhook and SSE update.
+2. Wait for Transaction Search indexing. Do not assume immediate visibility.
+3. Run `pnpm exec tsx scripts/verify-mcp-live.ts` from the repository root with
+   Sandbox credentials in `.env`.
+4. Replace this section with: date/time, exact `availableTools` and
+   `unavailableTools`, per-tool sanitized counts, whether the new payment appeared
+   (`total_items` / `total_pages` only), and any observed lag. If it is absent, write
+   "not visible after X minutes; expected per FACT-01" and retry later.
+
+**Safety:** the script never prints the token, secrets, raw MCP payloads, free text or
+raw amounts; it prints only allowlisted integer page counts. Exit code 0 requires all
+three required tools to be discovered and every sanitized output to contain no key
+named `note`, `custom_id`, `subject` or `messages`.
+
 
