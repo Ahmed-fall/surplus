@@ -7,6 +7,7 @@ import type { PayPalOrdersClient } from "@surplus/paypal";
 
 const CreateBodySchema = z.object({
   amountCents: z.number().int().positive().optional(),
+  returnUrl: z.string().url().optional(),
 });
 
 const CaptureBodySchema = z.object({
@@ -33,7 +34,7 @@ export function createDemoCheckoutHandlers(deps: DemoCheckoutDeps): {
     }
     const amountCents = parsed.data.amountCents ?? 120_000;
     try {
-      const order = await orders.createOrder(amountCents);
+      const order = await orders.createOrder(amountCents, "USD", parsed.data.returnUrl);
       res.status(200).json(order);
     } catch {
       res.status(502).json({ error: "paypal_error" });
