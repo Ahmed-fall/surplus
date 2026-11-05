@@ -16,6 +16,8 @@ import type { PayPalCaptureResponse, PayPalOrderResponse } from "./types.js";
 export interface PayPalOrder {
   orderId: string;
   status: string;
+  /** PayPal approval URL for the buyer (rel="approve"), if present. */
+  approvalUrl: string | null;
 }
 
 export interface PayPalCapture {
@@ -64,7 +66,11 @@ function hashPayerEmail(email: string | undefined): string | null {
 
 export class PayPalOrdersClient extends PaypalClient {
   /** POST /v2/checkout/orders — create a CAPTURE-intent order. */
-  async createOrder(amountCents: number, currencyCode = "USD"): Promise<PayPalOrder> {
+  async createOrder(
+    amountCents: number,
+    currencyCode = "USD",
+    returnUrl?: string,
+  ): Promise<PayPalOrder> {
     if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
       throw new PayPalError(
         "INVALID_AMOUNT",
@@ -85,6 +91,9 @@ export class PayPalOrdersClient extends PaypalClient {
           },
         },
       ],
+      ...(returnUrl !== undefined
+        ? { application_context: { return_url: returnUrl, cancel_url: returnUrl } }
+        : {}),
     });
 
     const data = await this.request<PayPalOrderResponse>("/v2/checkout/orders", {
@@ -95,7 +104,12 @@ export class PayPalOrdersClient extends PaypalClient {
     if (typeof data.id !== "string" || data.id.length === 0) {
       throw new PayPalError("PARSE_ERROR", "Malformed create-order response");
     }
-    return { orderId: data.id, status: data.status ?? "UNKNOWN" };
+    const approvalLink = data.links?.find((link) => link.rel === "approve");
+    return {
+      orderId: data.id,
+      status: data.status ?? "UNKNOWN",
+      approvalUrl: approvalLink?.href ?? null,
+    };
   }
 
   /** POST /v2/checkout/orders/{id}/capture — capture and return integer cents. */
