@@ -2,8 +2,6 @@
 
 Explainable treasury runway and idle-cash allocation advisor for PayPal-paid freelancers and small merchants. A deterministic engine computes a safe-to-invest surplus, a tool-calling AI agent explains it, and a grounding validator checks every number. Built for the PayPal AI Hackathon.
 
-> This README is a foundation stub. R6 owns it and expands it (architecture, Sandbox guide, data disclosure).
-
 ## Quickstart
 
 Requirements: Node 20.19+ and pnpm 9 (`corepack enable`).
@@ -16,6 +14,22 @@ pnpm dev                 # web: http://localhost:3000   api: http://localhost:40
 ```
 
 Other commands: `pnpm -r build`, `pnpm -r test`, `pnpm lint`, `pnpm typecheck`, `pnpm format`, `pnpm --filter @surplus/paypal test:token`.
+
+## AI tools used
+
+- **Vercel AI SDK v4** orchestrates structured model output and the read-only tool loop.
+- **Gemini 2.5 Flash** is the primary narrative model.
+- **GPT-4o-mini** is the optional fallback model; local and CI tests do not require a paid key.
+- The **deterministic Surplus engine** computes every financial value. The model never does money
+  math.
+- The **grounding validator** checks citations, currency and percentage claims, prohibited security
+  names, promise language, execution claims, and the mandatory educational disclaimer.
+- **PayPal MCP** is restricted to read-only transaction and dispute tools for `live_sandbox`. Its
+  output is reduced to sanitized counts. Hosted MCP verification is still required before this is
+  claimed as a demonstrated feature in the video or Devpost submission.
+
+See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for the trust boundaries and
+[`docs/DATA_NOTES.md`](docs/DATA_NOTES.md) for the live-versus-simulated disclosure.
 
 ## Layout
 
