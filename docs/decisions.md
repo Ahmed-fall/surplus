@@ -407,3 +407,12 @@ Requests to other owners:
 - Tests: seed.test.ts asserts an empty live start and idempotent reset; an app test serves summary, surplus and plan for an empty live merchant. 48 API tests pass.
 - TODO(R2): replace EMPTY_LIVE_DATASET with the real PayPal reporting balance snapshot when getMerchantDataset lands.
 
+### 2026-11-05 H-2 final audit and C-12 local verification (R1)
+
+- Re-ran the H-2 checklist after H-3 merged: only `.env.example` is tracked and it holds placeholders; no secret-shaped strings match in tracked files; CI still runs format, lint, typecheck, build, tests and gitleaks; CORS remains exact-origin; admin reset remains constant-time and disabled when the token is empty; webhook verification still runs before parsing or writing.
+- Local production smoke test: `pnpm --filter @surplus/api start` served `GET /api/health` 200 and `GET /api/summary?merchantId=live_sandbox` 200 with the empty live dataset. `POST /api/admin/reset` returned 404 because `ADMIN_RESET_TOKEN` is unset, which is the intended safe default.
+- `render.yaml` is unchanged and still defines one service each for the API and web app, `/api/health` as the health check, `HOST=0.0.0.0`, the Sandbox API base, and `sync: false` for every secret.
+- Removed obsolete remote branches that are fully superseded on main: `r1/c-12-render-deploy`, `r1/c-5-webhooks-sse`, `r1/k-2-monorepo-scaffold`. C-12's `render.yaml` is identical on main and its other files are older than main's H-2/C-5 versions, so merging it would have regressed security headers and live sync.
+- Still manual and external (needs Render dashboard credentials): create the Blueprint, set the secrets plus `WEB_ORIGIN`/`NEXT_PUBLIC_API_URL`, then verify the hosted `/api/health`, a `SUCCESS` webhook verification, and an SSE update under 10 seconds.
+
+
