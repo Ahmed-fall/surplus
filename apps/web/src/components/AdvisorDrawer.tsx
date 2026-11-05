@@ -323,8 +323,8 @@ export function AdvisorDrawer({
                 {advisor.toolTrace.length === 0 ? (
                   <EmptyPanel title="No tool trace on this response">
                     <p>
-                      Fallback responses are built without tool calls; the trace fills in when the
-                      grounded agent is available.
+                      No tool calls were recorded for this response. Tool details appear here when
+                      the advisor invokes an available integration.
                     </p>
                   </EmptyPanel>
                 ) : (
