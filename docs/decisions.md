@@ -14,7 +14,25 @@ Format for each entry: date (Africa/Cairo), task id, author role, what was decid
 
 ## K-1 Devpost compliance checklist (R6)
 
-_Pending._
+Date: 2026-11-09 Africa/Cairo
+
+* Deadline: Thursday Nov 12, 2026 12:00 PM PST = 22:00 Africa/Cairo. Internal freeze Wed Nov 11 22:00 Cairo.
+* Root license: Apache-2.0 LICENSE present at repo root. Required by hackathon rules.
+* Video: under 3:00, target 2:45. Hard limit 2:50 per M3 gate. Script prepared in docs/DEMO_SCRIPT.md.
+* Data disclosure: Hybrid dataset – 11 months simulated historical baseline + current-month PayPal Sandbox live payments. Disclosed in docs/DATA_NOTES.md and UI footer. Never misrepresent simulated data as live.
+* Educational disclaimer: `EDUCATIONAL_NOT_FINANCIAL_ADVICE_V1` on every advisor response and plan. No tickers, no guaranteed returns, no execution claims.
+* Target prizes: Best Use of PayPal + AI, Best Use of AG Grid, Best Use of Render, Grand / Category.
+* Submission requirements evidence checklist:
+  - Public repo with root Apache-2.0 LICENSE.
+  - Live demo URL on Render with HTTPS.
+  - PayPal Sandbox integration with verified webhook signature.
+  - AI explanation with grounding validator badge.
+  - SSE live update demonstrated.
+  - Data honesty statement in README and DATA_NOTES.
+  - Demo video <3:00 published.
+* Unknown / event specific: Official Devpost event URL, exact prize eligibility text, and submission form fields not identified in repo. Mark as TODO pending human confirmation.
+
+Status: PARTIALLY COMPLETE – compliance items documented, event-specific URLs TODO.
 
 ## Gate 0 evidence (Oct 24, 21:00 Cairo)
 
