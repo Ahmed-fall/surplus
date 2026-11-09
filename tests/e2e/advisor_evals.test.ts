@@ -110,7 +110,7 @@ describe("R6 C-4 Advisor 15-Prompt Suite", () => {
   all.forEach(({ id, narrative }) => {
     it(`prompt ${id} passes validator with disclaimer`, () => {
       const draft = makeDraft(narrative);
-      const result = validateAdvisorOutput(draft, DUMMY_TOOL_OUTPUTS);
+      validateAdvisorOutput(draft, DUMMY_TOOL_OUTPUTS);
       // Validator checks disclaimer, banned instruments, banned promises, and citation matching.
       // For these deterministic mocks we only assert disclaimer presence and no banned tokens.
       expect(draft.disclaimerId).toBe(DISCLAIMER_ID);
