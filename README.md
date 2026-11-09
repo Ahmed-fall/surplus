@@ -9,7 +9,7 @@ Requirements: Node 20.19+ and pnpm 9 (`corepack enable`).
 ```bash
 cp .env.example .env     # fill in Sandbox credentials from the team vault
 pnpm install
-pnpm seed
+# pnpm seed is a stub pending R2 implementation; it exits successfully but does not populate data
 pnpm dev                 # web: http://localhost:3000   api: http://localhost:4000/health
 ```
 
