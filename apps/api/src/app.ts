@@ -13,6 +13,7 @@ import type {
   RiskProfile,
   ScenarioInput,
 } from "@surplus/contracts";
+import type { PayPalOrdersClient } from "@surplus/paypal";
 import { DISCLAIMER_ID_V1, DISCLAIMER_TEXT_V1 } from "@surplus/contracts";
 import {
   computeAllocationPlan,
@@ -31,6 +32,7 @@ import {
 import { SseHub } from "./routes/sseHub";
 import type { WebhookDeps } from "./routes/webhooks";
 import { createWebhookHandler } from "./routes/webhooks";
+import { createDemoCheckoutHandlers } from "./routes/demoCheckout";
 import { createAdminResetHandler } from "./routes/admin";
 
 export interface BuildAppOptions {
@@ -50,6 +52,8 @@ export interface BuildAppOptions {
   webhook?: Pick<WebhookDeps, "verify" | "store" | "now">;
   /** Enables POST /api/admin/reset when a non-empty token is supplied. */
   admin?: { token: string; reset: () => void | Promise<void> };
+  /** R2's PayPal Orders client; mounts the live demo checkout endpoints when supplied. */
+  demoCheckout?: { orders: PayPalOrdersClient };
   webOrigin?: string;
 }
 
@@ -170,6 +174,14 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   if (options.admin !== undefined && options.admin.token.length > 0) {
     const adminReset = createAdminResetHandler(options.admin);
     app.post("/api/admin/reset", handle(adminReset));
+  }
+
+  // Live demo (C-10): mounted only when server.ts injects an Orders client,
+  // which keeps credentialless deployments free of dead endpoints.
+  if (options.demoCheckout !== undefined) {
+    const demoCheckout = createDemoCheckoutHandlers({ orders: options.demoCheckout.orders });
+    app.post("/api/demo/checkout/create", handle(demoCheckout.create));
+    app.post("/api/demo/checkout/capture", handle(demoCheckout.capture));
   }
 
   app.get(
