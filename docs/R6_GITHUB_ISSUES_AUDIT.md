@@ -7,11 +7,13 @@ Scope: Issues #46–#51, docs/R6_GITHUB_ISSUES_BACKLOG.md, AGENT_CONTEXT.md task
 ## Issue-by-issue audit
 
 ### #46 [R2][F-4] Replace pnpm seed stub with deterministic SQLite seeding
+
 - **State:** Test/disposable duplicate
 - **Finding:** Body is "Test issue body". Title duplicates #47. Created during gh issue create validation. No implementation details.
 - **Verdict:** Disposable test issue. Do not use for execution. Does not represent real work.
 
 ### #47 [R2][F-4] Replace pnpm seed stub with deterministic four-persona SQLite seeding
+
 - **Defect confirmed:** Yes
 - **Evidence:**
   - `scripts/seed.ts` lines 1-3: `console.log("seed: nothing to seed yet (task F-4, owner R2).")`
@@ -25,6 +27,7 @@ Scope: Issues #46–#51, docs/R6_GITHUB_ISSUES_BACKLOG.md, AGENT_CONTEXT.md task
 - **Gaps:** Issue asks to export getMerchantDataset to return fixture data, but getMerchantDataset lives in R2 sources. Acceptable. Needs explicit fixture format spec from R3.
 
 ### #48 [R2][C-10] Wire live /pay-merchant demo checkout with real PayPal Orders v2 capture
+
 - **Defect confirmed:** Partially
 - **Evidence:**
   - `apps/web/src/app/pay-merchant/page.tsx` exists and calls `/api/demo/checkout/create` and `/api/demo/checkout/capture`
@@ -35,11 +38,12 @@ Scope: Issues #46–#51, docs/R6_GITHUB_ISSUES_BACKLOG.md, AGENT_CONTEXT.md task
 - **Actionable:** Yes, but ownership mismatch. Mounting routes in `apps/api/src/app.ts` is owned by R1 per ownership.json:
   - R1 include: `apps/api/src/routes/**`, `apps/api/src/app.ts`, `apps/api/src/server.ts`
   - R2 include: `apps/api/src/routes/demoCheckout.ts`, `apps/web/src/app/pay-merchant/**`
-  Changing `app.ts` requires R1 approval/ownership. Issue assigns to R2.
+    Changing `app.ts` requires R1 approval/ownership. Issue assigns to R2.
 - **Missing details:** No spec for PayPalOrdersClient integration point, error handling, idempotency.
 - **Dependencies real:** Yes. Depends on R1 C-5 webhook verification and PaypalClient.
 
 ### #49 [R1][C-12] Verify hosted Render deployment with seed-on-boot and webhook verification
+
 - **Defect confirmed:** Yes, verification pending
 - **Evidence:**
   - `render.yaml` defines surplus-api and surplus-web with healthCheckPath /api/health
@@ -52,6 +56,7 @@ Scope: Issues #46–#51, docs/R6_GITHUB_ISSUES_BACKLOG.md, AGENT_CONTEXT.md task
 - **Dependencies real:** Yes. Depends on R2 F-4 seed and C-5 webhooks.
 
 ### #50 [R5][F-10] Add ag-grid-react, ag-grid-community, recharts to apps/web dependencies
+
 - **Defect confirmed:** No
 - **Evidence:**
   - `apps/web/package.json` dependencies: `@surplus/contracts`, `next`, `react`, `react-dom`. No ag-grid or recharts.
@@ -64,6 +69,7 @@ Scope: Issues #46–#51, docs/R6_GITHUB_ISSUES_BACKLOG.md, AGENT_CONTEXT.md task
 - **Dependencies:** N/A.
 
 ### #51 [R4][C-2] Wire real runAdvisorTurn into POST /api/advisor with grounding validator
+
 - **Defect confirmed:** Mischaracterized
 - **Evidence:**
   - `apps/api/src/app.ts` lines 292-300: `const response = options.runAdvisorTurn ? await options.runAdvisorTurn(...) : advisorStub(...)`
@@ -82,6 +88,7 @@ Scope: Issues #46–#51, docs/R6_GITHUB_ISSUES_BACKLOG.md, AGENT_CONTEXT.md task
 Based on AGENT_CONTEXT.md Section 8 and repository inspection:
 
 **R1**
+
 - K-2 Monorepo scaffold: Verified complete. CI present, root LICENSE exists.
 - K-3 PayPal Sandbox setup: Unverified. No evidence of credentials or test:token run in repo.
 - S-1 Token/Transaction Search spike: Unverified. Code exists, awaiting live run per decisions.md.
@@ -94,6 +101,7 @@ Based on AGENT_CONTEXT.md Section 8 and repository inspection:
 - **New issue needed:** None. C-12 covered.
 
 **R2**
+
 - S-2 Orders v2 capture hybrid store proof: Unverified.
 - F-2 SQLite schema windowed loader dedup: Verified complete. `packages/paypal/src/sources/db.ts` schema present, `windowedLoader.ts` implements windowed load.
 - F-3 Normalizer prompt injection stripper: Verified complete. `packages/paypal/src/sources/normalizer.ts` exists.
@@ -103,6 +111,7 @@ Based on AGENT_CONTEXT.md Section 8 and repository inspection:
 - **New issue needed:** None.
 
 **R3**
+
 - K-4 Freeze contracts v1.0: Verified complete. Merge `95e8e8c`.
 - F-6 Cash flow summary engine: Verified complete. Merged with K-4.
 - F-7 Surplus calculator: Verified complete.
@@ -111,6 +120,7 @@ Based on AGENT_CONTEXT.md Section 8 and repository inspection:
 - **New issue needed:** H-7 coverage verification.
 
 **R4**
+
 - S-5 MCP read-only allowlist sanitizer: Unverified. Code exists per decisions.md but live verification pending.
 - F-11 Tool registry MCP integration: Partially verified. `apps/api/src/agent/tools.ts` exists.
 - C-2 Advisor orchestrator grounding validator fallback: Existing issue #51. Wiring exists, integration testing missing.
@@ -118,6 +128,7 @@ Based on AGENT_CONTEXT.md Section 8 and repository inspection:
 - **New issue needed:** H-3 agent hardening verification.
 
 **R5**
+
 - K-6 Wireframes: Verified complete with action items. `docs/wireframes.md` exists, review recorded APPROVED WITH ACTION ITEMS.
 - F-10 Dashboard AG Grid Recharts: Issue #50 exists but defect not confirmed. Implementation uses custom components.
 - C-8 Advisor UI tool trace SSE: Verified complete. Components exist.
