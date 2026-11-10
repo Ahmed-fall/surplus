@@ -201,14 +201,16 @@ _None yet._
 - Request wrappers (apps/api/src/routes/schemas.ts) re-use contracts enums only. **Request to R3:** consider absorbing MerchantQuerySchema, SurplusQuerySchema, PlanRequestSchema, ScenarioRequestSchema into contracts.
 - **asOf anchor (request to R2 and R3 to confirm):** fixture personas use DEMO_AS_OF = 2026-10-01T00:00:00Z for reproducible golden values; live_sandbox uses 
 new Date().toISOString(). Implemented in apps/api/src/routes/dataset.ts.
-- **Temporary stubs:** (1) apps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through buildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's runAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
+- **Temporary stubs:** (1) apps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through buildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's 
+runAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
 - Tests: supertest cases cover 200 valid / 400 invalid per route, 404, malformed JSON and CORS restriction. `pnpm -r build` and `pnpm -r test` are green.
 
 ### Requests to other owners
 
 - **R2:** export MerchantDataset + getMerchantDataset(merchantId) from packages/paypal/src/sources (shape used: transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount).
 - **R3:** confirm the fixture asOf anchor; optionally adopt the request schemas into @surplus/contracts.
-- **R4:** export runAdvisorTurn from apps/api/src/agent with the injectable shape used here.
+- **R4:** export 
+runAdvisorTurn from apps/api/src/agent with the injectable shape used here.
 
 ### R1 decisions and spike log (K-3, S-1, S-4, F-1, C-12, H-2)
 ### 2026-10-25 K-3 - Sandbox token check (R1)
@@ -485,6 +487,9 @@ named `note`, `custom_id`, `subject` or `messages`.
 
 
 
+## F-10 Web dependencies (R5)
+- 2026-11-10 | F-10 | R5 | Added `ag-grid-community@^36.3.0`, `ag-grid-react@^36.3.0` and `recharts@^3.10.1` to `apps/web/package.json` per the K-6 review action item and issue #50 (selected the latest majors with React 19 peer support: both AG Grid 36 and Recharts 3 accept `react ^19.0.0`). `pnpm install` resolves and `pnpm --filter @surplus/web build` is green (all 5 pages prerender).
+- 2026-11-10 | F-10 | R5 | Acceptance note: issue #50's acceptance item "AuditTable renders AG Grid, CashFlowChart renders Recharts" conflicts with the same issue's out-of-scope rule "Do not change component logic". This PR adds only the dependencies (scope items 1-4); wiring the existing dependency-free grid/chart components to the libraries is deliberately left for the R5 dashboard UI task so behavior and design review stay with the role owning F-10's UI slice. No component logic touched (component diffs: none).
 ## C-10 Demo checkout composition (R1)
 - 2026-11-10 | C-10 | R1 | Mounted R2's demo checkout handlers in `apps/api/src/app.ts`: `POST /api/demo/checkout/create` and `POST /api/demo/checkout/capture` via the existing `createDemoCheckoutHandlers` factory; handler logic untouched. Routes mount only when `BuildAppOptions.demoCheckout` is supplied, so credentialless deployments have no dead endpoints (agrees with the webhook/admin optional-dep pattern).
 - 2026-11-10 | C-10 | R1 | `apps/api/src/server.ts` composition injects a `PayPalOrdersClient` built from the same Sandbox credentials as `PaypalClient` (`PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`/`PAYPAL_API_BASE`); without credentials the endpoints stay unmounted. Contract tests in `apps/api/src/app.test.ts` cover 200 create (with + default $1,200 amount), capture, 400 validation, 502 `paypal_error` mapping and the 404-without-client case.
