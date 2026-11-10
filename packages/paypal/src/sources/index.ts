@@ -12,3 +12,9 @@ export {
   transactionKindFor,
   transactionStatusFor,
 } from "./normalizer.js";
+export {
+  isPersonaMerchant,
+  loadFixtureDataset,
+  seedFixtures,
+  type FixtureDatasetFile,
+} from "./seedFixtures.js";
