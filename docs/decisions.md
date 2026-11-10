@@ -484,3 +484,7 @@ named `note`, `custom_id`, `subject` or `messages`.
 - 2026-11-10 | K-6 | R6 | Reviewed `docs/wireframes.md`. Component hierarchy, dashboard layout, surplus breakdown, audit grid, advisor drawer, What-If simulator documented. Wireframes are implementation-ready pending R6 formal approval. Review result: APPROVED WITH ACTION ITEMS — R1 must add `ag-grid-react`, `ag-grid-community`, `recharts` to `apps/web/package.json`; R2 must provide working seeder; R4 must wire real `runAdvisorTurn`. Recorded here pending human sign-off.
 
 
+
+## C-10 Demo checkout composition (R1)
+- 2026-11-10 | C-10 | R1 | Mounted R2's demo checkout handlers in `apps/api/src/app.ts`: `POST /api/demo/checkout/create` and `POST /api/demo/checkout/capture` via the existing `createDemoCheckoutHandlers` factory; handler logic untouched. Routes mount only when `BuildAppOptions.demoCheckout` is supplied, so credentialless deployments have no dead endpoints (agrees with the webhook/admin optional-dep pattern).
+- 2026-11-10 | C-10 | R1 | `apps/api/src/server.ts` composition injects a `PayPalOrdersClient` built from the same Sandbox credentials as `PaypalClient` (`PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`/`PAYPAL_API_BASE`); without credentials the endpoints stay unmounted. Contract tests in `apps/api/src/app.test.ts` cover 200 create (with + default $1,200 amount), capture, 400 validation, 502 `paypal_error` mapping and the 404-without-client case.

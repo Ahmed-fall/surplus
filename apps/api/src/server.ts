@@ -2,7 +2,7 @@
 // Wires the real PaypalClient (when credentials exist), the SQLite-backed
 // webhook store, R2's live dataset loader, R4's grounded advisor, the
 // seed-on-boot reset, and then starts Express.
-import { PaypalClient } from "@surplus/paypal";
+import { PaypalClient, PayPalOrdersClient } from "@surplus/paypal";
 import { getMerchantDataset } from "@surplus/paypal/sources";
 import { buildApp } from "./app";
 import { runAdvisorTurn } from "./agent/advisor";
@@ -37,6 +37,12 @@ const apiBase = process.env["PAYPAL_API_BASE"] ?? "https://api-m.sandbox.paypal.
 const client =
   clientId !== undefined && clientSecret !== undefined
     ? new PaypalClient({ clientId, clientSecret, baseUrl: apiBase })
+    : undefined;
+
+/** C-10: same Sandbox credentials drive the live demo checkout endpoints. */
+const ordersClient =
+  clientId !== undefined && clientSecret !== undefined
+    ? new PayPalOrdersClient({ clientId, clientSecret, baseUrl: apiBase })
     : undefined;
 
 const getMcpTools: GetMcpTools | undefined =
@@ -77,6 +83,7 @@ const loadDataset: DatasetLoader = async (merchantId) => {
 
 const app = buildApp({
   loadDataset,
+  demoCheckout: ordersClient === undefined ? undefined : { orders: ordersClient },
   runAdvisorTurn: (input) =>
     getMcpTools === undefined ? runAdvisorTurn(input) : runAdvisorTurn(input, { getMcpTools }),
   sseHub: hub,
