@@ -10,6 +10,7 @@ Requirements: Node 20.19+ and pnpm 9 (`corepack enable`).
 cp .env.example .env     # fill in Sandbox credentials from the team vault
 pnpm install
 # pnpm seed is a stub pending R2 implementation; it exits successfully but does not populate data
+# Run pnpm dev only after seed is implemented by R2; currently dashboard will show empty state
 pnpm dev                 # web: http://localhost:3000   api: http://localhost:4000/health
 ```
 

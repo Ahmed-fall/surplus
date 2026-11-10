@@ -31,8 +31,9 @@ Date: 2026-11-09 Africa/Cairo
   - Data honesty statement in README and DATA_NOTES.
   - Demo video <3:00 published.
 * Unknown / event specific: Official Devpost event URL, exact prize eligibility text, and submission form fields not identified in repo. Mark as TODO pending human confirmation.
+* 2026-11-10 | R6 | Devpost event confirmed via public source: https://paypalaihackathon.devpost.com/ Deadline Nov 12 2026 12:00pm PST = 22:00 Cairo. Event page confirms PayPal AI Hackathon: Build what’s next with PayPal and AI.
 
-Status: PARTIALLY COMPLETE – compliance items documented, event-specific URLs TODO.
+Status: PARTIALLY COMPLETE – compliance items documented, event URL confirmed, team review and video still pending.
 
 ## Gate 0 evidence (Oct 24, 21:00 Cairo)
 
@@ -478,5 +479,8 @@ later instead of hiding it.
 raw amounts; it prints only allowlisted integer page counts. Exit code 0 requires all
 three required tools to be discovered and every sanitized output to contain no key
 named `note`, `custom_id`, `subject` or `messages`.
+
+## K-6 Wireframe review (R6)
+- 2026-11-10 | K-6 | R6 | Reviewed `docs/wireframes.md`. Component hierarchy, dashboard layout, surplus breakdown, audit grid, advisor drawer, What-If simulator documented. Wireframes are implementation-ready pending R6 formal approval. Review result: APPROVED WITH ACTION ITEMS — R1 must add `ag-grid-react`, `ag-grid-community`, `recharts` to `apps/web/package.json`; R2 must provide working seeder; R4 must wire real `runAdvisorTurn`. Recorded here pending human sign-off.
 
 
