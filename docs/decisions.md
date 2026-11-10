@@ -201,14 +201,16 @@ _None yet._
 - Request wrappers (apps/api/src/routes/schemas.ts) re-use contracts enums only. **Request to R3:** consider absorbing MerchantQuerySchema, SurplusQuerySchema, PlanRequestSchema, ScenarioRequestSchema into contracts.
 - **asOf anchor (request to R2 and R3 to confirm):** fixture personas use DEMO_AS_OF = 2026-10-01T00:00:00Z for reproducible golden values; live_sandbox uses 
 new Date().toISOString(). Implemented in apps/api/src/routes/dataset.ts.
-- **Temporary stubs:** (1) apps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through buildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's runAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
+- **Temporary stubs:** (1) apps/api/src/routes/dataset.ts returns the contracts example payload until R2 exposes getMerchantDataset(merchantId) in packages/paypal/src/sources; the loader is injected through buildApp(), so the swap is one line. (2) POST /api/advisor returns a FALLBACK_TEMPLATE AdvisorResponse until R4's 
+runAdvisorTurn lands (injectable the same way). Both are marked TEMPORARY in code.
 - Tests: supertest cases cover 200 valid / 400 invalid per route, 404, malformed JSON and CORS restriction. `pnpm -r build` and `pnpm -r test` are green.
 
 ### Requests to other owners
 
 - **R2:** export MerchantDataset + getMerchantDataset(merchantId) from packages/paypal/src/sources (shape used: transactions, availableBalanceCents, balanceSource, openDisputes, excludedNonUsdCount).
 - **R3:** confirm the fixture asOf anchor; optionally adopt the request schemas into @surplus/contracts.
-- **R4:** export runAdvisorTurn from apps/api/src/agent with the injectable shape used here.
+- **R4:** export 
+runAdvisorTurn from apps/api/src/agent with the injectable shape used here.
 
 ### R1 decisions and spike log (K-3, S-1, S-4, F-1, C-12, H-2)
 ### 2026-10-25 K-3 - Sandbox token check (R1)
@@ -503,3 +505,121 @@ named `note`, `custom_id`, `subject` or `messages`.
   4. Webhook + SSE: POST create+capture on the hosted API drives a REAL Sandbox capture — `curl -X POST https://<api>/api/demo/checkout/create -H 'Content-Type: application/json' -d '{"amountCents":120000}'` (orderId), then `.../capture` with orderId (captureId). PAYMENT.CAPTURE.COMPLETED arrives at `/api/webhooks/paypal`; apps/api logs must show `verification_status: SUCCESS`, and the SSE stream (`GET /api/events?merchantId=live_sandbox`) must update within 10 seconds. If the summary is missing instead of visible, record "not visible after N minutes; expected per FACT-01" and rerun.
   5. Record hosted URL + curl outputs + log snippet in this section, then close the issue.
 - 2026-11-10 | C-12 | R1 | **Issue #48 [R2][C-10] status note**: its in-repo items are already satisfied on main — Orders v2 `createOrder`/`captureOrder` exist and are unit-tested (`packages/paypal/src/client/orders.ts`, orders.test.ts), the handlers exist (`routes/demoCheckout.ts`), and route mounting is live on main (PR #54). The remaining criteria (real capture evidence, verified webhook row, UI screenshot) are exactly the external steps in the runbook above and need the Sandbox credentials + hosted URL; no further R2 code changes identified.
+- Still manual and external (needs Render dashboard credentials): create the Blueprint, set the secrets plus `WEB_ORIGIN`/`NEXT_PUBLIC_API_URL`, then verify the hosted `/api/health`, a `SUCCESS` webhook verification, and an SSE update under 10 seconds.
+
+### 2026-11-05 H-3 MCP tool-loop wiring (R1)
+
+- Cross-owner request opened as issue #26 for R4-owned `apps/api/src/agent/**`; R4 or R3 written approval is still pending, so this branch remains draft and will not carry `ownership-approved` until that comment exists.
+- `runAdvisorTurn` now accepts an injected lazy `getMcpTools`. MCP is attempted only for `live_sandbox`; the four fixture personas never call it.
+- A live MCP session is used for one bounded `generateText` tool loop (`maxSteps: 5`, primary then fallback, 7s per attempt, abortable). A connection or tool-loop failure falls through to internal tools only and never fails the request. The session is closed before narrative generation on every path.
+- `toolTrace` entries are recorded by wrapping each tool's `execute`: one entry per successful call, real elapsed milliseconds, and only numeric or short-enum summaries. MCP outputs are still sanitized to page counts by `sanitizeMcpOutput`.
+- `createAdvisorTools` now filters the model registry to the frozen contract allowlist. `paypal_mcp_get_merchant_insights` remains a discovery requirement in `connectPaypalMcp` but is not exposed to the model or trace.
+- Sanitized MCP summaries are passed to the draft generator as `externalToolSummaries` and to the grounding validator as allowed tool outputs. No PayPal free text reaches the prompt, validator, or response.
+
+### MCP live verification
+
+**Date:** 2026-11-05 (verification script prepared; live capture not run yet)
+**Owner:** R2 (H-8)
+**Status:** pending live execution. C-10 `/pay-merchant` is not implemented in this
+workspace and no Sandbox `.env` or hosted URL is available to this agent, so no
+capture was created and no live MCP result is claimed.
+
+**Discovered tool names (live):** not observed yet. The client allowlist requires
+`list_transactions`, `list_disputes` and `get_merchant_insights`; R4's offline tests
+and local stdio fixture cover the boundary, but live discovery must be rerun with the
+command below.
+
+**New $1,200 Sandbox payment visible through `list_transactions`:** not tested yet.
+No count is recorded because no count was observed.
+
+**Indexing delay observed:** none observed yet. FACT-01 says Transaction Search can
+lag 3+ hours. A miss immediately after capture is expected; record the miss and rerun
+later instead of hiding it.
+
+**Runbook after C-10 works on the hosted URL:**
+
+1. Create one $1,200.00 Sandbox capture on `/pay-merchant`; confirm the verified
+   webhook and SSE update.
+2. Wait for Transaction Search indexing. Do not assume immediate visibility.
+3. Run `pnpm exec tsx scripts/verify-mcp-live.ts` from the repository root with
+   Sandbox credentials in `.env`.
+4. Replace this section with: date/time, exact `availableTools` and
+   `unavailableTools`, per-tool sanitized counts, whether the new payment appeared
+   (`total_items` / `total_pages` only), and any observed lag. If it is absent, write
+   "not visible after X minutes; expected per FACT-01" and retry later.
+
+**Safety:** the script never prints the token, secrets, raw MCP payloads, free text or
+raw amounts; it prints only allowlisted integer page counts. Exit code 0 requires all
+three required tools to be discovered and every sanitized output to contain no key
+named `note`, `custom_id`, `subject` or `messages`.
+
+## K-6 Wireframe review (R6)
+- 2026-11-10 | K-6 | R6 | Reviewed `docs/wireframes.md`. Component hierarchy, dashboard layout, surplus breakdown, audit grid, advisor drawer, What-If simulator documented. Wireframes are implementation-ready pending R6 formal approval. Review result: APPROVED WITH ACTION ITEMS — R1 must add `ag-grid-react`, `ag-grid-community`, `recharts` to `apps/web/package.json`; R2 must provide working seeder; R4 must wire real `runAdvisorTurn`. Recorded here pending human sign-off.
+
+
+
+## F-4 Deterministic seeding (R2)
+- 2026-11-10 | F-4 | R2 | Implemented `pnpm seed` (idempotent, offline, 6-24ms, well under the 2s requirement): JSON fixtures under `fixtures/` (`persona_steady_retainer`, `persona_volatile_freelancer`, `persona_seasonal_seller`, `persona_dispute_spike`, `live_sandbox`) are the single source of truth for seeding `surplus.db` (WAL) via `seedFixtures()` in `packages/paypal/src/sources` (validates every row against the contracts schemas; duplicate ids, wrong merchants, non-USD or non-fixture rows fail loudly).
+- 2026-11-10 | F-4 | R2 | **Fixture numbers are a two-way lock with the engine**: `seedFixtures.test.ts` reproduces the persona snapshot statistics (steady 1900000 safe / 6 tranches / default obligations from withdrawals; volatile 392724 / CV 0.7987; seasonal 1248300 / CV 0.6199; dispute NEGATIVE_CASH_FLOW / safe 0) and the live_sandbox golden locks (`computeCashFlowSummary` equals `exampleCashFlowSummary`, and with the golden $18,500 `PAYPAL_REPORTING_API` balance `computeSurplus` equals `exampleSurplusResult`). Fixture generators mirror `packages/engine` persona/golden builders byte-for-byte, mixing is caught by either side immediately.
+- 2026-11-10 | F-4 | R2 | **Deviation from FACT-02 wording (11 months -> 12)**: seeded live_sandbox baseline carries the full 12 golden months (2025-10..2026-09) instead of 11, keeping the frozen example-payload statistics exact; the "empty current month for live capture" invariant is preserved because all baseline rows are in completed historical buckets while the current real month starts empty.
+- 2026-11-10 | F-4 | R2 | **Live merchant balance stays zero at seed time** (`balanceSource: LIVE_WEBHOOK_ADJUSTED`), honoring R1's seed-on-boot invariant that fixture data never fabricates a live PayPal balance; the golden balance value is exercised in tests only. Personas are seeded with `balanceSource: FIXTURE`.
+- 2026-11-10 | F-4 | R2 | `getMerchantDataset` now resolves simulator personas synchronously from fixtures without PayPal credentials (client argument made optional); only `live_sandbox` walks the live windowed loader. Deterministic `asOf` ("2026-10-01T00:00:00Z") is written into the `balances` row so repeated seeds are byte-identical; R1's `merchant_store_metadata` table is created by the seeder with the same DDL so `surplus.db` boots straight into the API even before the first app run.
+- Still manual and external (needs Render dashboard credentials): create the Blueprint, set the secrets plus `WEB_ORIGIN`/`NEXT_PUBLIC_API_URL`, then verify the hosted `/api/health`, a `SUCCESS` webhook verification, and an SSE update under 10 seconds.
+
+### 2026-11-05 H-3 MCP tool-loop wiring (R1)
+
+- Cross-owner request opened as issue #26 for R4-owned `apps/api/src/agent/**`; R4 or R3 written approval is still pending, so this branch remains draft and will not carry `ownership-approved` until that comment exists.
+- `runAdvisorTurn` now accepts an injected lazy `getMcpTools`. MCP is attempted only for `live_sandbox`; the four fixture personas never call it.
+- A live MCP session is used for one bounded `generateText` tool loop (`maxSteps: 5`, primary then fallback, 7s per attempt, abortable). A connection or tool-loop failure falls through to internal tools only and never fails the request. The session is closed before narrative generation on every path.
+- `toolTrace` entries are recorded by wrapping each tool's `execute`: one entry per successful call, real elapsed milliseconds, and only numeric or short-enum summaries. MCP outputs are still sanitized to page counts by `sanitizeMcpOutput`.
+- `createAdvisorTools` now filters the model registry to the frozen contract allowlist. `paypal_mcp_get_merchant_insights` remains a discovery requirement in `connectPaypalMcp` but is not exposed to the model or trace.
+- Sanitized MCP summaries are passed to the draft generator as `externalToolSummaries` and to the grounding validator as allowed tool outputs. No PayPal free text reaches the prompt, validator, or response.
+
+### MCP live verification
+
+**Date:** 2026-11-05 (verification script prepared; live capture not run yet)
+**Owner:** R2 (H-8)
+**Status:** pending live execution. C-10 `/pay-merchant` is not implemented in this
+workspace and no Sandbox `.env` or hosted URL is available to this agent, so no
+capture was created and no live MCP result is claimed.
+
+**Discovered tool names (live):** not observed yet. The client allowlist requires
+`list_transactions`, `list_disputes` and `get_merchant_insights`; R4's offline tests
+and local stdio fixture cover the boundary, but live discovery must be rerun with the
+command below.
+
+**New $1,200 Sandbox payment visible through `list_transactions`:** not tested yet.
+No count is recorded because no count was observed.
+
+**Indexing delay observed:** none observed yet. FACT-01 says Transaction Search can
+lag 3+ hours. A miss immediately after capture is expected; record the miss and rerun
+later instead of hiding it.
+
+**Runbook after C-10 works on the hosted URL:**
+
+1. Create one $1,200.00 Sandbox capture on `/pay-merchant`; confirm the verified
+   webhook and SSE update.
+2. Wait for Transaction Search indexing. Do not assume immediate visibility.
+3. Run `pnpm exec tsx scripts/verify-mcp-live.ts` from the repository root with
+   Sandbox credentials in `.env`.
+4. Replace this section with: date/time, exact `availableTools` and
+   `unavailableTools`, per-tool sanitized counts, whether the new payment appeared
+   (`total_items` / `total_pages` only), and any observed lag. If it is absent, write
+   "not visible after X minutes; expected per FACT-01" and retry later.
+
+**Safety:** the script never prints the token, secrets, raw MCP payloads, free text or
+raw amounts; it prints only allowlisted integer page counts. Exit code 0 requires all
+three required tools to be discovered and every sanitized output to contain no key
+named `note`, `custom_id`, `subject` or `messages`.
+
+## K-6 Wireframe review (R6)
+- 2026-11-10 | K-6 | R6 | Reviewed `docs/wireframes.md`. Component hierarchy, dashboard layout, surplus breakdown, audit grid, advisor drawer, What-If simulator documented. Wireframes are implementation-ready pending R6 formal approval. Review result: APPROVED WITH ACTION ITEMS — R1 must add `ag-grid-react`, `ag-grid-community`, `recharts` to `apps/web/package.json`; R2 must provide working seeder; R4 must wire real `runAdvisorTurn`. Recorded here pending human sign-off.
+
+
+
+## F-10 Web dependencies (R5)
+- 2026-11-10 | F-10 | R5 | Added `ag-grid-community@^36.3.0`, `ag-grid-react@^36.3.0` and `recharts@^3.10.1` to `apps/web/package.json` per the K-6 review action item and issue #50 (selected the latest majors with React 19 peer support: both AG Grid 36 and Recharts 3 accept `react ^19.0.0`). `pnpm install` resolves and `pnpm --filter @surplus/web build` is green (all 5 pages prerender).
+- 2026-11-10 | F-10 | R5 | Acceptance note: issue #50's acceptance item "AuditTable renders AG Grid, CashFlowChart renders Recharts" conflicts with the same issue's out-of-scope rule "Do not change component logic". This PR adds only the dependencies (scope items 1-4); wiring the existing dependency-free grid/chart components to the libraries is deliberately left for the R5 dashboard UI task so behavior and design review stay with the role owning F-10's UI slice. No component logic touched (component diffs: none).
+## C-10 Demo checkout composition (R1)
+- 2026-11-10 | C-10 | R1 | Mounted R2's demo checkout handlers in `apps/api/src/app.ts`: `POST /api/demo/checkout/create` and `POST /api/demo/checkout/capture` via the existing `createDemoCheckoutHandlers` factory; handler logic untouched. Routes mount only when `BuildAppOptions.demoCheckout` is supplied, so credentialless deployments have no dead endpoints (agrees with the webhook/admin optional-dep pattern).
+- 2026-11-10 | C-10 | R1 | `apps/api/src/server.ts` composition injects a `PayPalOrdersClient` built from the same Sandbox credentials as `PaypalClient` (`PAYPAL_CLIENT_ID`/`PAYPAL_CLIENT_SECRET`/`PAYPAL_API_BASE`); without credentials the endpoints stay unmounted. Contract tests in `apps/api/src/app.test.ts` cover 200 create (with + default $1,200 amount), capture, 400 validation, 502 `paypal_error` mapping and the 404-without-client case.
