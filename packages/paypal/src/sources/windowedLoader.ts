@@ -7,6 +7,7 @@ import { PaypalClient } from "../client/index.js";
 import type { MerchantId, NormalizedTransaction } from "@surplus/contracts";
 import { getDb } from "./db";
 import { normalizeTransaction } from "./normalizer";
+import { isPersonaMerchant, loadFixtureDataset } from "./seedFixtures";
 
 const WINDOW_COUNT = 12;
 const WINDOW_DAYS = 31;
@@ -154,16 +155,33 @@ export async function loadTransactions(
 
 /**
  * Public dataset getter used by the API layer (AGENT_CONTEXT Section 7).
+ *
+ * Simulator personas resolve synchronously from the fixture files (no PayPal
+ * credentials required); the live merchant walks the windowed PayPal flow.
+ * Personas are always deterministic — fixture data is not "live data" for
+ * any of them, so we never touch the network.
  */
 export async function getMerchantDataset(
   merchantId: MerchantId,
   asOf: string = new Date().toISOString(),
-  client: PaypalClient = createPaypalClientFromEnv(),
+  client?: PaypalClient,
 ): Promise<MerchantDataset> {
+  if (isPersonaMerchant(merchantId)) {
+    const fixture = loadFixtureDataset(merchantId);
+    return {
+      transactions: fixture.transactions,
+      availableBalanceCents: fixture.availableBalanceCents,
+      balanceSource: fixture.balanceSource,
+      openDisputes: fixture.openDisputes,
+      excludedNonUsdCount: fixture.excludedNonUsdCount,
+    };
+  }
+  const liveClient = client ?? createPaypalClientFromEnv();
+
   const { transactions, excludedNonUsdCount } = await loadWindowedTransactions(
     merchantId,
     asOf,
-    client,
+    liveClient,
   );
 
   const db = getDb();
