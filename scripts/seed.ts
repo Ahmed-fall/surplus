@@ -12,9 +12,9 @@ const seeded = seedFixtures(db);
 const elapsed = Math.round(performance.now() - start);
 
 for (const { merchantId, transactionCount } of seeded) {
-  console.log(
-    `${merchantId}: ${transactionCount} transactions, ` +
-      `${db.prepare("SELECT COUNT(*) AS count FROM open_disputes WHERE merchantId = ?").get(merchantId).count} open disputes`,
-  );
+  const disputes = db
+    .prepare("SELECT COUNT(*) AS count FROM open_disputes WHERE merchantId = ?")
+    .get(merchantId) as { count: number };
+  console.log(`${merchantId}: ${transactionCount} transactions, ${disputes.count} open disputes`);
 }
 console.log(`seed complete in ${elapsed}ms (surplus.db)`);
