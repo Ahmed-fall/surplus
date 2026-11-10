@@ -484,3 +484,7 @@ named `note`, `custom_id`, `subject` or `messages`.
 - 2026-11-10 | K-6 | R6 | Reviewed `docs/wireframes.md`. Component hierarchy, dashboard layout, surplus breakdown, audit grid, advisor drawer, What-If simulator documented. Wireframes are implementation-ready pending R6 formal approval. Review result: APPROVED WITH ACTION ITEMS — R1 must add `ag-grid-react`, `ag-grid-community`, `recharts` to `apps/web/package.json`; R2 must provide working seeder; R4 must wire real `runAdvisorTurn`. Recorded here pending human sign-off.
 
 
+
+## F-10 Web dependencies (R5)
+- 2026-11-10 | F-10 | R5 | Added `ag-grid-community@^36.3.0`, `ag-grid-react@^36.3.0` and `recharts@^3.10.1` to `apps/web/package.json` per the K-6 review action item and issue #50 (selected the latest majors with React 19 peer support: both AG Grid 36 and Recharts 3 accept `react ^19.0.0`). `pnpm install` resolves and `pnpm --filter @surplus/web build` is green (all 5 pages prerender).
+- 2026-11-10 | F-10 | R5 | Acceptance note: issue #50's acceptance item "AuditTable renders AG Grid, CashFlowChart renders Recharts" conflicts with the same issue's out-of-scope rule "Do not change component logic". This PR adds only the dependencies (scope items 1-4); wiring the existing dependency-free grid/chart components to the libraries is deliberately left for the R5 dashboard UI task so behavior and design review stay with the role owning F-10's UI slice. No component logic touched (component diffs: none).
