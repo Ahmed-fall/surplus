@@ -32,14 +32,14 @@ export function CashFlowChart({ summary }: CashFlowChartProps) {
           <div>
             <p className="card-kicker">Trend</p>
             <h3 className="card-title" id="cashflow-chart-title">
-              Monthly net cash flow
+              What you kept each month
             </h3>
           </div>
         </div>
         <EmptyPanel title="No completed months yet">
           <p>
-            The engine needs completed calendar months before it can draw a trend. Live Sandbox
-            merchants start empty and fill in as verified webhooks arrive.
+            We need at least one full month of payments to draw a trend. The live demo starts empty
+            and fills in as Sandbox payments arrive.
           </p>
         </EmptyPanel>
       </article>
@@ -60,11 +60,10 @@ export function CashFlowChart({ summary }: CashFlowChartProps) {
         <div>
           <p className="card-kicker">Trend</p>
           <h3 className="card-title" id="cashflow-chart-title">
-            Monthly net cash flow
+            What you kept each month
           </h3>
           <p className="card-sub">
-            Completed calendar months only · in-progress month excluded ·{" "}
-            {summary.completedMonthsCount} months
+            Your last {summary.completedMonthsCount} full months, after fees and refunds
           </p>
         </div>
         <div className="chart-legend" aria-hidden="true">
@@ -145,16 +144,25 @@ export function CashFlowChart({ summary }: CashFlowChartProps) {
 
       <div className="chart-foot">
         <p>
-          Median completed-month net:{" "}
-          <strong>{formatCents(summary.baselineMonthlyNetCents)}</strong>
+          Typical month: <strong>{formatCents(summary.baselineMonthlyNetCents)}</strong>
         </p>
         <p>
-          Trend slope: <strong>{formatSignedCents(summary.trendSlopeCentsPerMonth)} / month</strong>
+          {summary.trendSlopeCentsPerMonth === 0 ? (
+            <>
+              Trend: <strong>holding steady</strong>
+            </>
+          ) : (
+            <>
+              Trend:{" "}
+              <strong>{summary.trendSlopeCentsPerMonth > 0 ? "growing" : "shrinking"}</strong> by
+              about {formatCents(Math.abs(summary.trendSlopeCentsPerMonth))} a month
+            </>
+          )}
         </p>
       </div>
 
       <details className="chart-data">
-        <summary>View monthly data table</summary>
+        <summary>See the monthly numbers</summary>
         <div className="chart-data-scroll">
           <table>
             <caption className="sr-only">Monthly net cash flow by completed month</caption>

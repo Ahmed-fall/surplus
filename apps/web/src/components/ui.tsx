@@ -122,19 +122,21 @@ export function ValidatorBadge({
 }) {
   const config = {
     PASSED: {
-      label: "Validator: PASSED",
+      label: "✓ Every number checked",
       tone: "pass",
-      detail: "Every number matched tool output.",
+      detail: "Every number in this answer was checked against your real data before showing it.",
     },
     REGENERATED_PASSED: {
-      label: "Validator: REGENERATED",
+      label: "✓ Checked (second try)",
       tone: "warn",
-      detail: "A first draft was rejected, then regenerated cleanly.",
+      detail:
+        "The first draft had a number we could not verify, so it was rewritten and checked again.",
     },
     FALLBACK_TEMPLATE: {
-      label: "Validator: FALLBACK TEMPLATE",
+      label: "Standard summary",
       tone: "fallback",
-      detail: "The model output was unavailable or failed checks; deterministic copy is shown.",
+      detail:
+        "The AI answer was unavailable or could not be verified, so a standard summary is shown instead.",
     },
   }[status];
 

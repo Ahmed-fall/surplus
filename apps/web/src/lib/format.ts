@@ -10,6 +10,13 @@ const USD = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
+const USD_WHOLE = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
 const USD_COMPACT = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
@@ -48,7 +55,13 @@ const DATE_TIME = new Intl.DateTimeFormat("en-US", {
   timeZoneName: "short",
 });
 
+/** Friendly money: drops ".00" on whole-dollar amounts, e.g. 1600000 -> "$16,000". */
 export function formatCents(cents: number): string {
+  return cents % 100 === 0 ? USD_WHOLE.format(cents / 100) : USD.format(cents / 100);
+}
+
+/** Always two decimals, for ledgers where columns should line up. */
+export function formatCentsExact(cents: number): string {
   return USD.format(cents / 100);
 }
 
@@ -57,9 +70,9 @@ export function formatCompactCents(cents: number): string {
   return USD_COMPACT.format(cents / 100);
 }
 
-export function formatSignedCents(cents: number): string {
-  if (cents === 0) return formatCents(0);
-  const absolute = formatCents(Math.abs(cents));
+export function formatSignedCents(cents: number, format = formatCents): string {
+  if (cents === 0) return format(0);
+  const absolute = format(Math.abs(cents));
   return `${cents > 0 ? "+" : "-"}${absolute}`;
 }
 
@@ -78,8 +91,33 @@ export function formatWholePercent(value: number): string {
   return `${value}%`;
 }
 
+/** Trims trailing zeros, e.g. 3.00 -> "3 months", 4.50 -> "4.5 months". */
 export function formatMonths(months: number): string {
-  return `${months.toFixed(2)} months`;
+  const trimmed = Number(months.toFixed(2)).toString();
+  return `${trimmed} ${trimmed === "1" ? "month" : "months"}`;
+}
+
+/** Friendly percentage: "0%" for zero, otherwise one decimal, e.g. 0.0345 -> "3.5%". */
+export function formatFriendlyPercent(ratio: number): string {
+  if (ratio === 0) return "0%";
+  return `${Number((ratio * 100).toFixed(1)).toString()}%`;
+}
+
+/** Plain-language reading of the engine's coefficient of variation. */
+export function describeIncomeSwings(cv: number): string {
+  if (cv < 0.2) return "Steady";
+  if (cv < 0.6) return "Some ups and downs";
+  return "Very uneven";
+}
+
+const SHORT_DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+
+/** Calendar date `days` from now in the viewer's time zone, e.g. 30 -> "Dec 12". */
+export function formatDaysFromToday(days: number, now = new Date()): string {
+  if (days === 0) return "Today";
+  const date = new Date(now);
+  date.setDate(date.getDate() + days);
+  return SHORT_DATE.format(date);
 }
 
 export function formatMonthBucket(bucket: string): string {
