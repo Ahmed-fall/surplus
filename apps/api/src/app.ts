@@ -13,6 +13,7 @@ import type {
   RiskProfile,
   ScenarioInput,
 } from "@surplus/contracts";
+import type { PayPalOrdersClient } from "@surplus/paypal";
 import { DISCLAIMER_ID_V1, DISCLAIMER_TEXT_V1 } from "@surplus/contracts";
 import {
   computeAllocationPlan,
@@ -31,9 +32,8 @@ import {
 import { SseHub } from "./routes/sseHub";
 import type { WebhookDeps } from "./routes/webhooks";
 import { createWebhookHandler } from "./routes/webhooks";
-import { createAdminResetHandler } from "./routes/admin";
 import { createDemoCheckoutHandlers } from "./routes/demoCheckout";
-import type { PayPalOrdersClient } from "@surplus/paypal";
+import { createAdminResetHandler } from "./routes/admin";
 
 export interface BuildAppOptions {
   /** R2's getMerchantDataset(merchantId) once it lands on main. */
@@ -52,7 +52,7 @@ export interface BuildAppOptions {
   webhook?: Pick<WebhookDeps, "verify" | "store" | "now">;
   /** Enables POST /api/admin/reset when a non-empty token is supplied. */
   admin?: { token: string; reset: () => void | Promise<void> };
-  /** Demo checkout handlers for /pay-merchant (C-10). */
+  /** R2's PayPal Orders client; mounts the live demo checkout endpoints when supplied. */
   demoCheckout?: { orders: Pick<PayPalOrdersClient, "createOrder" | "captureOrder"> };
   webOrigin?: string;
 }
@@ -176,13 +176,15 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     app.post("/api/admin/reset", handle(adminReset));
   }
 
+  // Live demo (C-10): mounted only when server.ts injects an Orders client,
+  // which keeps credentialless deployments free of dead endpoints.
   if (options.demoCheckout !== undefined) {
-    const demoHandlers = createDemoCheckoutHandlers({
+    const demoCheckout = createDemoCheckoutHandlers({
       orders: options.demoCheckout.orders,
       webOrigin,
     });
-    app.post("/api/demo/checkout/create", handle(demoHandlers.create));
-    app.post("/api/demo/checkout/capture", handle(demoHandlers.capture));
+    app.post("/api/demo/checkout/create", handle(demoCheckout.create));
+    app.post("/api/demo/checkout/capture", handle(demoCheckout.capture));
   }
 
   app.get(

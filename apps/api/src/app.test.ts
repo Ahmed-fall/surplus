@@ -1,6 +1,7 @@
 // Owner: R1. Task F-9: route contract tests (supertest).
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import request from "supertest";
+import type { PayPalOrdersClient } from "@surplus/paypal";
 import { buildApp } from "./app";
 import type { MerchantDataset } from "./routes/dataset";
 import { exampleOpenDisputesSummary } from "@surplus/contracts/examples";
@@ -277,5 +278,112 @@ describe("live merchant with no events yet", () => {
       riskProfile: "BALANCED",
     });
     expect(plan.status).toBe(200);
+  });
+});
+
+// Owner: R1. C-10: demo checkout endpoints are mounted only when an Orders
+// client is injected; the handlers themselves are R2-owned.
+describe("POST /api/demo/checkout/*", () => {
+  const demoApp = (orders: unknown) =>
+    buildApp({
+      loadDataset: () => richDataset(),
+      demoCheckout: { orders: orders as PayPalOrdersClient },
+    });
+
+  let createOrder: Mock;
+  let captureOrder: Mock;
+  let client: unknown;
+
+  beforeEach(() => {
+    createOrder = vi.fn(async () => ({ orderId: "ORD-1", status: "CREATED" }));
+    captureOrder = vi.fn(async () => ({
+      captureId: "CAPT-1",
+      status: "COMPLETED",
+      currencyCode: "USD",
+      grossCents: 120000,
+      feeCents: 3530,
+      netCents: 116470,
+      payerEmailHash: "bdebcdef",
+      occurredAt: "2026-11-10T00:00:00Z",
+    }));
+    client = { createOrder, captureOrder };
+  });
+
+  it("create returns 200 with the PayPal order result and forwards amountCents", async () => {
+    const res = await request(demoApp(client))
+      .post("/api/demo/checkout/create")
+      .send({ amountCents: 120000 });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ orderId: "ORD-1", status: "CREATED" });
+    expect(createOrder).toHaveBeenCalledWith(
+      120000,
+      "USD",
+      expect.objectContaining({ returnUrl: expect.stringContaining("/pay-merchant") }),
+    );
+  });
+
+  it("create defaults the amount to the $1,200 demo price", async () => {
+    const res = await request(demoApp(client)).post("/api/demo/checkout/create").send({});
+    expect(res.status).toBe(200);
+    expect(createOrder).toHaveBeenCalledWith(
+      120000,
+      "USD",
+      expect.objectContaining({ returnUrl: expect.stringContaining("/pay-merchant") }),
+    );
+  });
+
+  it("create rejects non-positive amounts with 400", async () => {
+    const res = await request(demoApp(client))
+      .post("/api/demo/checkout/create")
+      .send({ amountCents: 0 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("invalid_request");
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+
+  it("create maps PayPal failures to 502 paypal_error", async () => {
+    createOrder.mockRejectedValueOnce(new Error("paypal unreachable"));
+    const res = await request(demoApp(client)).post("/api/demo/checkout/create").send({});
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: "paypal_error", reason: "PAYPAL_UNAVAILABLE" });
+  });
+
+  it("capture returns 200 with the capture result and forwards orderId", async () => {
+    const res = await request(demoApp(client))
+      .post("/api/demo/checkout/capture")
+      .send({ orderId: "ORD-9" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      captureId: "CAPT-1",
+      status: "COMPLETED",
+      currencyCode: "USD",
+      grossCents: 120000,
+      feeCents: 3530,
+      netCents: 116470,
+      payerEmailHash: "bdebcdef",
+      occurredAt: "2026-11-10T00:00:00Z",
+    });
+    expect(captureOrder).toHaveBeenCalledWith("ORD-9");
+  });
+
+  it("capture rejects a missing orderId with 400", async () => {
+    const res = await request(demoApp(client)).post("/api/demo/checkout/capture").send({});
+    expect(res.status).toBe(400);
+    expect(captureOrder).not.toHaveBeenCalled();
+  });
+
+  it("capture maps PayPal failures to 502 paypal_error", async () => {
+    captureOrder.mockRejectedValueOnce(new Error("order already captured"));
+    const res = await request(demoApp(client))
+      .post("/api/demo/checkout/capture")
+      .send({ orderId: "ORD-1" });
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: "paypal_error", reason: "PAYPAL_UNAVAILABLE" });
+  });
+
+  it("routes stay unmounted without a client (no dead endpoints)", async () => {
+    const bare = buildApp({ loadDataset: () => richDataset() });
+    const res = await request(bare).post("/api/demo/checkout/create").send({});
+    expect(res.status).toBe(404);
   });
 });

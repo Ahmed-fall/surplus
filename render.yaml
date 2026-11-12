@@ -16,7 +16,10 @@ services:
     branch: main
     autoDeploy: true
     healthCheckPath: /api/health
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @surplus/api build
+    # F-4: the build populates surplus.db (deterministic personas + live_sandbox
+    # hybrid baseline); the boot adapter re-seeds the store from the same
+    # fixtures, so a fresh ephemeral filesystem still serves the demo.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @surplus/api build && pnpm seed
     startCommand: pnpm --filter @surplus/api start
     envVars:
       - key: NODE_VERSION

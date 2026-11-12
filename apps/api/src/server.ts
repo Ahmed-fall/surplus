@@ -39,7 +39,8 @@ const client =
     ? new PaypalClient({ clientId, clientSecret, baseUrl: apiBase })
     : undefined;
 
-const orders =
+/** C-10: same Sandbox credentials drive the live demo checkout endpoints. */
+const ordersClient =
   clientId !== undefined && clientSecret !== undefined
     ? new PayPalOrdersClient({ clientId, clientSecret, baseUrl: apiBase })
     : undefined;
@@ -82,6 +83,7 @@ const loadDataset: DatasetLoader = async (merchantId) => {
 
 const app = buildApp({
   loadDataset,
+  demoCheckout: ordersClient === undefined ? undefined : { orders: ordersClient },
   runAdvisorTurn: (input) =>
     getMcpTools === undefined ? runAdvisorTurn(input) : runAdvisorTurn(input, { getMcpTools }),
   sseHub: hub,
@@ -92,7 +94,6 @@ const app = buildApp({
           verify: (headers, rawBody) => client.verifyWebhookSignature(headers, rawBody, webhookId),
         }
       : undefined,
-  demoCheckout: orders !== undefined ? { orders } : undefined,
   admin: {
     token: adminResetToken,
     reset: async () => {
