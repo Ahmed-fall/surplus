@@ -16,6 +16,13 @@ import type { PayPalCaptureResponse, PayPalOrderResponse } from "./types.js";
 export interface PayPalOrder {
   orderId: string;
   status: string;
+  approvalUrl?: string;
+}
+
+/** Where PayPal sends the buyer after they approve or cancel the order. */
+export interface PayPalOrderRedirect {
+  returnUrl: string;
+  cancelUrl: string;
 }
 
 export interface PayPalCapture {
@@ -63,8 +70,16 @@ function hashPayerEmail(email: string | undefined): string | null {
 }
 
 export class PayPalOrdersClient extends PaypalClient {
-  /** POST /v2/checkout/orders — create a CAPTURE-intent order. */
-  async createOrder(amountCents: number, currencyCode = "USD"): Promise<PayPalOrder> {
+  /**
+   * POST /v2/checkout/orders — create a CAPTURE-intent order. The buyer must
+   * approve it at `approvalUrl` before it can be captured; pass `redirect` so
+   * PayPal knows where to send them back.
+   */
+  async createOrder(
+    amountCents: number,
+    currencyCode = "USD",
+    redirect?: PayPalOrderRedirect,
+  ): Promise<PayPalOrder> {
     if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
       throw new PayPalError(
         "INVALID_AMOUNT",
@@ -85,6 +100,20 @@ export class PayPalOrdersClient extends PaypalClient {
           },
         },
       ],
+      ...(redirect === undefined
+        ? {}
+        : {
+            payment_source: {
+              paypal: {
+                experience_context: {
+                  return_url: redirect.returnUrl,
+                  cancel_url: redirect.cancelUrl,
+                  user_action: "PAY_NOW",
+                  shipping_preference: "NO_SHIPPING",
+                },
+              },
+            },
+          }),
     });
 
     const data = await this.request<PayPalOrderResponse>("/v2/checkout/orders", {
@@ -95,7 +124,11 @@ export class PayPalOrdersClient extends PaypalClient {
     if (typeof data.id !== "string" || data.id.length === 0) {
       throw new PayPalError("PARSE_ERROR", "Malformed create-order response");
     }
-    return { orderId: data.id, status: data.status ?? "UNKNOWN" };
+    // With payment_source PayPal returns "payer-action"; without it, "approve".
+    const approvalUrl = data.links?.find(
+      (l) => l.rel === "payer-action" || l.rel === "approve",
+    )?.href;
+    return { orderId: data.id, status: data.status ?? "UNKNOWN", approvalUrl };
   }
 
   /** POST /v2/checkout/orders/{id}/capture — capture and return integer cents. */

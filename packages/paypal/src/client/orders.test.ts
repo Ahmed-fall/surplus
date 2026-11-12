@@ -140,6 +140,73 @@ describe("PayPalOrdersClient.createOrder", () => {
     });
   });
 
+  it("sends return/cancel URLs and returns the payer-action approval link", async () => {
+    const spy = mockFetch({
+      "/v2/checkout/orders": () =>
+        makeJsonResponse({
+          id: "ORDER-2",
+          status: "PAYER_ACTION_REQUIRED",
+          links: [
+            {
+              href: "https://api.sandbox.paypal.com/v2/checkout/orders/ORDER-2",
+              rel: "self",
+              method: "GET",
+            },
+            {
+              href: "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-2",
+              rel: "payer-action",
+              method: "GET",
+            },
+          ],
+        }),
+    });
+    const client = new PayPalOrdersClient(config());
+
+    await expect(
+      client.createOrder(120000, "USD", {
+        returnUrl: "http://localhost:3000/pay-merchant",
+        cancelUrl: "http://localhost:3000/pay-merchant?cancelled=1",
+      }),
+    ).resolves.toEqual({
+      orderId: "ORDER-2",
+      status: "PAYER_ACTION_REQUIRED",
+      approvalUrl: "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-2",
+    });
+
+    const call = spy.mock.calls.find(([input]) => fetchUrl(input).endsWith("/v2/checkout/orders"));
+    expect(JSON.parse(String(call?.[1]?.body)).payment_source).toEqual({
+      paypal: {
+        experience_context: {
+          return_url: "http://localhost:3000/pay-merchant",
+          cancel_url: "http://localhost:3000/pay-merchant?cancelled=1",
+          user_action: "PAY_NOW",
+          shipping_preference: "NO_SHIPPING",
+        },
+      },
+    });
+  });
+
+  it("falls back to the classic approve link", async () => {
+    mockFetch({
+      "/v2/checkout/orders": () =>
+        makeJsonResponse({
+          id: "ORDER-3",
+          status: "CREATED",
+          links: [
+            {
+              href: "https://www.sandbox.paypal.com/checkoutnow?token=ORDER-3",
+              rel: "approve",
+              method: "GET",
+            },
+          ],
+        }),
+    });
+    const client = new PayPalOrdersClient(config());
+
+    const order = await client.createOrder(5000);
+    expect(order.approvalUrl).toBe("https://www.sandbox.paypal.com/checkoutnow?token=ORDER-3");
+  });
+
   it("rejects invalid amounts before any network call", async () => {
     const spy = vi.spyOn(globalThis, "fetch");
     const client = new PayPalOrdersClient(config());

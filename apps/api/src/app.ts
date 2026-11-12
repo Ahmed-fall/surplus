@@ -32,6 +32,8 @@ import { SseHub } from "./routes/sseHub";
 import type { WebhookDeps } from "./routes/webhooks";
 import { createWebhookHandler } from "./routes/webhooks";
 import { createAdminResetHandler } from "./routes/admin";
+import { createDemoCheckoutHandlers } from "./routes/demoCheckout";
+import type { PayPalOrdersClient } from "@surplus/paypal";
 
 export interface BuildAppOptions {
   /** R2's getMerchantDataset(merchantId) once it lands on main. */
@@ -50,6 +52,8 @@ export interface BuildAppOptions {
   webhook?: Pick<WebhookDeps, "verify" | "store" | "now">;
   /** Enables POST /api/admin/reset when a non-empty token is supplied. */
   admin?: { token: string; reset: () => void | Promise<void> };
+  /** Demo checkout handlers for /pay-merchant (C-10). */
+  demoCheckout?: { orders: Pick<PayPalOrdersClient, "createOrder" | "captureOrder"> };
   webOrigin?: string;
 }
 
@@ -170,6 +174,15 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   if (options.admin !== undefined && options.admin.token.length > 0) {
     const adminReset = createAdminResetHandler(options.admin);
     app.post("/api/admin/reset", handle(adminReset));
+  }
+
+  if (options.demoCheckout !== undefined) {
+    const demoHandlers = createDemoCheckoutHandlers({
+      orders: options.demoCheckout.orders,
+      webOrigin,
+    });
+    app.post("/api/demo/checkout/create", handle(demoHandlers.create));
+    app.post("/api/demo/checkout/capture", handle(demoHandlers.capture));
   }
 
   app.get(
