@@ -30,6 +30,21 @@ import { DashboardSkeleton, ErrorPanel, InlineError } from "./ui";
 
 const DEFAULT_PERSONA = personaById(DEFAULT_PERSONA_ID);
 
+const HOW_IT_WORKS = [
+  {
+    title: "Pick a business",
+    copy: "Start with an example business, or the live demo connected to PayPal Sandbox.",
+  },
+  {
+    title: "Enter your monthly costs",
+    copy: "Tell us what you pay every month and how cautious you want to be.",
+  },
+  {
+    title: "See what is safe to invest",
+    copy: "We keep a cushion for slow months and disputes, then show the rest as a step-by-step plan.",
+  },
+] as const;
+
 export function Dashboard() {
   const [merchantId, setMerchantId] = useState<MerchantId>(DEFAULT_PERSONA_ID);
   const [obligationsInput, setObligationsInput] = useState(() =>
@@ -163,10 +178,10 @@ export function Dashboard() {
 
   const sseLabel =
     sseStatus === "open"
-      ? "Live SSE connected"
+      ? "Live updates on"
       : sseStatus === "error"
-        ? "SSE reconnecting…"
-        : "Connecting SSE…";
+        ? "Reconnecting…"
+        : "Connecting…";
   const eventCopy = lastEvent === null ? null : appEventPresentation(lastEvent.type);
 
   return (
@@ -188,16 +203,8 @@ export function Dashboard() {
               {sseLabel}
             </span>
             <span className={`source-pill source-pill--${activePersona.dataSource}`}>
-              {activePersona.dataSource === "live" ? "Live Sandbox" : "Fixture"}
+              {activePersona.dataSource === "live" ? "Live PayPal data" : "Example data"}
             </span>
-            <button
-              type="button"
-              className="button button--primary button--small"
-              onClick={() => setAdvisorOpen(true)}
-              disabled={bundle === null}
-            >
-              Ask AI Advisor
-            </button>
           </div>
         </div>
       </header>
@@ -205,14 +212,16 @@ export function Dashboard() {
       <main className="page">
         <section className="hero">
           <div className="hero-copy">
-            <p className="section-kicker">Explainable idle-cash planning</p>
+            <p className="section-kicker">
+              For freelancers and small businesses paid through PayPal
+            </p>
             <h1 className="hero-title">
-              Know your safe-to-invest surplus — and see every formula behind it.
+              Find out how much of your PayPal cash is safe to put to work.
             </h1>
             <p className="hero-sub">
-              Surplus reads normalized PayPal cash flow, reserves for volatility, refunds and open
-              disputes, then shows a deterministic runway and a staged educational allocation. The
-              LLM narrates; it never does the math.
+              Surplus looks at a year of your PayPal income, sets aside a safety cushion for slow
+              months, refunds and disputes, and shows what is left over. Every number is calculated
+              from your data, never guessed by AI.
             </p>
           </div>
           <div className="hero-side">
@@ -227,15 +236,22 @@ export function Dashboard() {
                     {formatCents(bundle.surplus.safeSurplusCents)}
                   </strong>
                   <span className="hero-stat-note">
-                    {formatCents(bundle.surplus.availableBalanceCents)} balance −{" "}
-                    {formatCents(bundle.surplus.bufferTargetCents)} buffer (
-                    {formatMonths(bundle.surplus.bufferMonths)}) −{" "}
-                    {formatCents(bundle.surplus.riskReserveCents)} risk reserve
+                    {bundle.surplus.modelStatus === "NEGATIVE_CASH_FLOW"
+                      ? "Keep it all for now: after refunds and chargebacks, your average month loses money"
+                      : bundle.surplus.modelStatus !== "OK"
+                        ? "We need a bit more history before suggesting anything"
+                        : bundle.surplus.safeSurplusCents === 0
+                          ? `Keep it all for now: your ${formatCents(bundle.surplus.availableBalanceCents)} balance doesn't yet cover a ${formatCents(bundle.surplus.bufferTargetCents)} cushion (${formatMonths(bundle.surplus.bufferMonths)} of costs)`
+                          : `${formatCents(bundle.surplus.availableBalanceCents)} in PayPal, after keeping ${formatCents(bundle.surplus.bufferTargetCents)} (${formatMonths(bundle.surplus.bufferMonths)} of costs) as a cushion`}
+                    {bundle.surplus.modelStatus === "OK" && bundle.surplus.riskReserveCents !== 0
+                      ? ` plus ${formatCents(bundle.surplus.riskReserveCents)} for refunds and disputes`
+                      : ""}
+                    .
                   </span>
                 </>
               ) : (
                 <strong className="hero-kpi hero-kpi--pending">
-                  {loading ? "Computing…" : "—"}
+                  {loading ? "Working it out…" : "—"}
                 </strong>
               )}
             </div>
@@ -246,7 +262,7 @@ export function Dashboard() {
                 onClick={() => setAdvisorOpen(true)}
                 disabled={bundle === null}
               >
-                Open advisor drawer
+                Explain my plan with AI
               </button>
               <button
                 type="button"
@@ -263,12 +279,24 @@ export function Dashboard() {
                 {appEventPresentation(lastEvent.type).shortLabel}
               </p>
             ) : (
-              <p className="hero-last-event">
-                SSE is connected to <code>/api/events</code>; a validated webhook will toast here.
-              </p>
+              <p className="hero-last-event">New PayPal payments show up here automatically.</p>
             )}
           </div>
         </section>
+
+        <ol className="how-it-works" aria-label="How Surplus works">
+          {HOW_IT_WORKS.map((step, index) => (
+            <li key={step.title} className="how-step">
+              <span className="how-step-num" aria-hidden="true">
+                {index + 1}
+              </span>
+              <div>
+                <strong>{step.title}</strong>
+                <span>{step.copy}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
 
         <PersonaBar
           merchantId={merchantId}
@@ -289,7 +317,7 @@ export function Dashboard() {
         {loading && bundle !== null ? (
           <div className="refresh-strip" role="status">
             <span className="refresh-spinner" aria-hidden="true" />
-            Recomputed from the engine…
+            Updating your numbers…
           </div>
         ) : null}
 
@@ -308,11 +336,11 @@ export function Dashboard() {
         transactions.length === 0 ? (
           <section className="card live-cta" aria-labelledby="live-cta-title">
             <div>
-              <p className="section-kicker">Live PayPal Sandbox</p>
-              <h2 id="live-cta-title">This merchant fills from real Sandbox payments</h2>
+              <p className="section-kicker">Live demo</p>
+              <h2 id="live-cta-title">Try a real test payment</h2>
               <p className="live-cta-copy">
-                Nothing is simulated here. Make a $1,200.00 Sandbox payment and watch the verified
-                webhook update the surplus on this page within seconds, without a reload.
+                Pay this demo business $1,200 with a PayPal Sandbox test account, then come back
+                here. Your safe-to-invest amount updates by itself within seconds.
               </p>
             </div>
             <a
@@ -337,7 +365,7 @@ export function Dashboard() {
 
             <div className="content-grid">
               <CashFlowChart summary={bundle.summary} />
-              <SurplusBreakdown surplus={bundle.surplus} />
+              <SurplusBreakdown surplus={bundle.surplus} plan={bundle.plan} />
             </div>
 
             <AuditTable transactions={transactions} />
@@ -353,8 +381,8 @@ export function Dashboard() {
 
         <footer className="page-footer">
           <p>
-            Data honesty: fixture personas use deterministic 12-month datasets. The live Sandbox
-            merchant starts empty and changes only through verified PayPal webhooks.
+            About the data: the four example businesses use made-up 12-month histories. The live
+            demo merchant uses only real PayPal Sandbox (test) payments.
           </p>
           <p>Educational information only — Surplus never moves money or recommends a security.</p>
         </footer>

@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { NormalizedTransaction, TransactionKind } from "@surplus/contracts";
 import { TransactionKindSchema } from "@surplus/contracts";
 import {
-  formatCents,
+  formatCentsExact,
   formatIsoDate,
   formatMonthBucket,
   formatSignedCents,
@@ -18,16 +18,7 @@ import { EmptyPanel } from "./ui";
 
 const PAGE_SIZE = 8;
 
-type SortKey =
-  | "occurredAt"
-  | "monthBucket"
-  | "kind"
-  | "status"
-  | "grossCents"
-  | "feeCents"
-  | "netCents"
-  | "source"
-  | "counterpartyHash";
+type SortKey = "occurredAt" | "who" | "kind" | "status" | "grossCents" | "feeCents" | "netCents";
 
 type SortDirection = "asc" | "desc";
 
@@ -37,21 +28,54 @@ interface AuditTableProps {
 
 const COLUMNS: { key: SortKey; label: string; numeric?: boolean }[] = [
   { key: "occurredAt", label: "Date" },
-  { key: "monthBucket", label: "Month" },
-  { key: "kind", label: "Kind" },
+  { key: "who", label: "Who" },
+  { key: "kind", label: "Type" },
   { key: "status", label: "Status" },
-  { key: "grossCents", label: "Gross", numeric: true },
-  { key: "feeCents", label: "Fee", numeric: true },
-  { key: "netCents", label: "Net", numeric: true },
-  { key: "source", label: "Source" },
-  { key: "counterpartyHash", label: "Counterparty" },
+  { key: "grossCents", label: "Amount", numeric: true },
+  { key: "feeCents", label: "PayPal fee", numeric: true },
+  { key: "netCents", label: "You got", numeric: true },
 ];
+
+const STATUS_LABELS: Record<NormalizedTransaction["status"], string> = {
+  COMPLETED: "Completed",
+  PENDING: "Pending",
+  REVERSED: "Reversed",
+};
+
+/**
+ * Payers are only stored as hashes, so each distinct payer gets a stable
+ * display alias ("Client A", "Client B"…) in order of their first payment.
+ */
+function buildAliases(transactions: NormalizedTransaction[]): Map<string, string> {
+  const aliases = new Map<string, string>();
+  const byDate = [...transactions].sort((left, right) =>
+    left.occurredAt.localeCompare(right.occurredAt),
+  );
+  for (const tx of byDate) {
+    if (tx.kind === "withdrawal" || tx.kind === "fee" || aliases.has(tx.counterpartyHash)) continue;
+    const index = aliases.size;
+    const letter = String.fromCharCode(65 + (index % 26));
+    aliases.set(
+      tx.counterpartyHash,
+      `Client ${index < 26 ? letter : `${letter}${Math.floor(index / 26)}`}`,
+    );
+  }
+  return aliases;
+}
+
+function whoLabel(tx: NormalizedTransaction, aliases: Map<string, string>): string {
+  if (tx.kind === "withdrawal") return "Your bank";
+  if (tx.kind === "fee") return "PayPal";
+  return aliases.get(tx.counterpartyHash) ?? "Customer";
+}
 
 function compareRows(
   left: NormalizedTransaction,
   right: NormalizedTransaction,
   key: SortKey,
+  aliases: Map<string, string>,
 ): number {
+  if (key === "who") return whoLabel(left, aliases).localeCompare(whoLabel(right, aliases));
   const leftValue = left[key];
   const rightValue = right[key];
   if (typeof leftValue === "number" && typeof rightValue === "number") {
@@ -67,6 +91,8 @@ export function AuditTable({ transactions }: AuditTableProps) {
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
   const [page, setPage] = useState(1);
 
+  const aliases = useMemo(() => buildAliases(transactions ?? []), [transactions]);
+
   const rows = useMemo(() => {
     const all = transactions ?? [];
     const needle = query.trim().toLowerCase();
@@ -74,18 +100,17 @@ export function AuditTable({ transactions }: AuditTableProps) {
       if (kindFilter !== "all" && tx.kind !== kindFilter) return false;
       if (needle.length === 0) return true;
       return (
-        tx.id.toLowerCase().includes(needle) ||
-        tx.counterpartyHash.includes(needle) ||
-        tx.monthBucket.includes(needle) ||
-        tx.kind.includes(needle)
+        whoLabel(tx, aliases).toLowerCase().includes(needle) ||
+        formatMonthBucket(tx.monthBucket).toLowerCase().includes(needle) ||
+        formatTransactionKind(tx.kind).toLowerCase().includes(needle)
       );
     });
     const direction = sortDirection === "asc" ? 1 : -1;
     return [...filtered].sort((left, right) => {
-      const primary = compareRows(left, right, sortKey) * direction;
+      const primary = compareRows(left, right, sortKey, aliases) * direction;
       return primary !== 0 ? primary : left.id.localeCompare(right.id);
     });
-  }, [transactions, kindFilter, query, sortKey, sortDirection]);
+  }, [transactions, aliases, kindFilter, query, sortKey, sortDirection]);
 
   const pageCount = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
 
@@ -124,20 +149,19 @@ export function AuditTable({ transactions }: AuditTableProps) {
     <section className="card table-card" aria-labelledby="audit-title">
       <div className="card-head card-head--wrap">
         <div>
-          <p className="card-kicker">Audit trail</p>
+          <p className="card-kicker">Every transaction</p>
           <h2 className="card-title" id="audit-title">
-            Normalized transaction grid
+            Your transactions
           </h2>
           <p className="card-sub">
-            GET /api/transactions ·{" "}
-            {transactions === null ? "loading" : `${transactions.length} rows`} · PayPal free text
-            is never stored or displayed
+            {transactions === null ? "Loading" : `${transactions.length} transactions`} · client
+            names and notes are never stored, so clients show as Client A, B, C…
           </p>
         </div>
         <div className="table-toolbar">
           <div className="toolbar-field">
             <label className="toolbar-label" htmlFor="audit-kind">
-              Kind
+              Type
             </label>
             <select
               id="audit-kind"
@@ -148,7 +172,7 @@ export function AuditTable({ transactions }: AuditTableProps) {
                 setKindFilter(value === "all" ? "all" : TransactionKindSchema.parse(value));
               }}
             >
-              <option value="all">All kinds</option>
+              <option value="all">All types</option>
               {TransactionKindSchema.options.map((kind) => (
                 <option value={kind} key={kind}>
                   {formatTransactionKind(kind)}
@@ -158,14 +182,14 @@ export function AuditTable({ transactions }: AuditTableProps) {
           </div>
           <div className="toolbar-field toolbar-field--search">
             <label className="toolbar-label" htmlFor="audit-search">
-              Quick filter
+              Search
             </label>
             <input
               id="audit-search"
               className="select"
               type="search"
               value={query}
-              placeholder="id, month, kind, hash…"
+              placeholder="Client, month or type…"
               onChange={(event) => setQuery(event.target.value)}
             />
           </div>
@@ -189,17 +213,12 @@ export function AuditTable({ transactions }: AuditTableProps) {
         </div>
       ) : rows.length === 0 ? (
         <EmptyPanel
-          title={
-            transactions.length === 0 ? "No transactions in this dataset yet" : "No rows match"
-          }
+          title={transactions.length === 0 ? "No payments yet" : "Nothing matches your search"}
         >
           {transactions.length === 0 ? (
-            <p>
-              Live Sandbox starts empty. Verified <code>PAYMENT.CAPTURE.COMPLETED</code> webhooks
-              appear here as normalized rows, never as raw PayPal payloads.
-            </p>
+            <p>Make a test payment on the Pay page and it shows up here within seconds.</p>
           ) : (
-            <p>Adjust the kind filter or quick filter to see more rows.</p>
+            <p>Try a different type or search.</p>
           )}
           {filtersActive ? (
             <button
@@ -216,7 +235,7 @@ export function AuditTable({ transactions }: AuditTableProps) {
           <div className="audit-grid-wrap">
             <table className="audit-table">
               <caption className="sr-only">
-                Normalized PayPal transactions with sortable columns and client-side filtering
+                Your PayPal transactions. Select a column heading to sort.
               </caption>
               <thead>
                 <tr>
@@ -244,8 +263,8 @@ export function AuditTable({ transactions }: AuditTableProps) {
               <tbody>
                 {pageRows.map((tx) => (
                   <tr key={tx.id}>
-                    <td className="mono">{formatIsoDate(tx.occurredAt)}</td>
-                    <td className="nowrap">{formatMonthBucket(tx.monthBucket)}</td>
+                    <td className="nowrap">{formatIsoDate(tx.occurredAt)}</td>
+                    <td className="nowrap">{whoLabel(tx, aliases)}</td>
                     <td>
                       <span className={`kind-pill kind-pill--${tx.kind}`}>
                         {formatTransactionKind(tx.kind)}
@@ -253,19 +272,15 @@ export function AuditTable({ transactions }: AuditTableProps) {
                     </td>
                     <td>
                       <span className={`status-pill status-pill--${tx.status.toLowerCase()}`}>
-                        {tx.status}
+                        {STATUS_LABELS[tx.status]}
                       </span>
                     </td>
-                    <td className="numeric mono">{formatCents(tx.grossCents)}</td>
-                    <td className="numeric mono">{formatCents(tx.feeCents)}</td>
+                    <td className="numeric mono">{formatCentsExact(tx.grossCents)}</td>
+                    <td className="numeric mono">
+                      {tx.feeCents === 0 ? "—" : formatCentsExact(tx.feeCents)}
+                    </td>
                     <td className={`numeric mono ${tx.netCents >= 0 ? "positive" : "negative"}`}>
-                      {formatSignedCents(tx.netCents)}
-                    </td>
-                    <td>
-                      <span className={`source-pill source-pill--${tx.source}`}>{tx.source}</span>
-                    </td>
-                    <td className="mono muted-cell" title={tx.counterpartyHash}>
-                      {tx.counterpartyHash}
+                      {formatSignedCents(tx.netCents, formatCentsExact)}
                     </td>
                   </tr>
                 ))}
@@ -275,8 +290,7 @@ export function AuditTable({ transactions }: AuditTableProps) {
 
           <div className="table-foot">
             <p>
-              Showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, rows.length)} of{" "}
-              {rows.length}
+              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, rows.length)} of {rows.length}
             </p>
             <div className="pager">
               <button

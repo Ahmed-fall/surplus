@@ -39,17 +39,17 @@ export function PersonaBar({
     <section className="persona-panel" aria-labelledby="persona-heading">
       <div className="section-head section-head--compact">
         <div>
-          <p className="section-kicker">Onboarding</p>
+          <p className="section-kicker">Step 1</p>
           <h2 className="section-title" id="persona-heading">
-            Choose a merchant context
+            Choose a business to explore
           </h2>
           <p className="section-sub">
-            Four deterministic fixture personas plus the live Sandbox merchant. The same
-            contract-validated payloads drive every card below.
+            Four example businesses with different cash-flow patterns, plus a live demo connected to
+            PayPal Sandbox.
           </p>
         </div>
         <span className={`source-pill source-pill--${activePersona.dataSource}`}>
-          {activePersona.dataSource === "live" ? "Live Sandbox" : "Fixture persona"}
+          {activePersona.dataSource === "live" ? "Live PayPal data" : "Example data"}
         </span>
       </div>
 
@@ -78,7 +78,7 @@ export function PersonaBar({
       <form className="controls-grid" onSubmit={handleSubmit}>
         <div className="field">
           <label className="field-label" htmlFor="monthly-obligations">
-            Monthly fixed obligations
+            Monthly fixed costs
           </label>
           <div className={`money-input${obligationsError !== null ? " money-input--error" : ""}`}>
             <span className="money-prefix" aria-hidden="true">
@@ -103,14 +103,14 @@ export function PersonaBar({
           >
             {obligationsError ??
               (obligationsSource === "TRAILING_3M_WITHDRAWAL_AVG"
-                ? "Using the trailing 3-month withdrawal average until you apply a value."
-                : "Integer cents on the wire. The engine owns the buffer math.")}
+                ? "Estimated from your last 3 months of withdrawals. Enter your own amount to be precise."
+                : "Rent, software, insurance: what you pay every month no matter what.")}
           </p>
         </div>
 
         <div className="field">
           <span className="field-label" id="risk-label">
-            Risk profile
+            How cautious?
           </span>
           <div className="segmented" role="group" aria-labelledby="risk-label">
             {RISK_PROFILES.map((option) => (
@@ -124,23 +124,22 @@ export function PersonaBar({
               >
                 <span>{option.label}</span>
                 <small>
-                  {option.id === "CONSERVATIVE" ? "6" : option.id === "BALANCED" ? "4" : "3"}{" "}
-                  tranches
+                  {option.id === "CONSERVATIVE" ? "6" : option.id === "BALANCED" ? "4" : "3"} steps
                 </small>
               </button>
             ))}
           </div>
           <p className="field-hint">
-            Risk profile changes the allocation bands and the number of staged tranches.
+            More cautious means more in cash and a slower, more spread-out plan.
           </p>
         </div>
 
         <div className="field field--action">
           <button type="submit" className="button button--primary" disabled={busy}>
-            {busy ? "Recomputing…" : "Apply & recompute"}
+            {busy ? "Updating…" : "Update my numbers"}
           </button>
           <p className="field-hint field-hint--right">
-            POST /api/plan · deterministic engine output only
+            Changing how cautious you are updates right away.
           </p>
         </div>
       </form>

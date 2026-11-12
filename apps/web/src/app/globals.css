@@ -3178,3 +3178,121 @@ code,
     width: 100%;
   }
 }
+
+/* ----------------------------------------------------------------------- */
+/* Client-friendly onboarding                                               */
+/* ----------------------------------------------------------------------- */
+
+.how-it-works {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.how-step > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.how-step strong {
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.how-step-num {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.breakdown-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 760px) {
+  .how-it-works {
+    grid-template-columns: 1fr;
+  }
+}
+
+.breakdown-equation {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown-equation > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.breakdown-equation dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.breakdown-equation small {
+  font-size: 11px;
+}
+
+.breakdown-equation-total {
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.breakdown-equation-total dt {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.breakdown-equation-total dd {
+  font-size: clamp(24px, 2.6vw, 32px);
+  font-weight: 780;
+  letter-spacing: -0.03em;
+}
+
+.scenario-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scenario-result--updating {
+  opacity: 0.6;
+  transition: opacity 120ms ease;
+}
