@@ -1,4 +1,4 @@
-// Owner: R5. Persona switcher and onboarding controls (obligations + risk profile).
+// Owner: R5. Settings bar: business switcher, monthly costs and risk profile.
 import type { FormEvent } from "react";
 import type { MerchantId, ObligationsSource, RiskProfile } from "@surplus/contracts";
 import { PERSONAS, RISK_PROFILES, personaById } from "@/lib/personas";
@@ -36,49 +36,57 @@ export function PersonaBar({
   }
 
   return (
-    <section className="persona-panel" aria-labelledby="persona-heading">
+    <section className="persona-panel persona-panel--compact" aria-labelledby="persona-heading">
       <div className="section-head section-head--compact">
         <div>
-          <p className="section-kicker">Onboarding</p>
+          <p className="section-kicker">Your details</p>
           <h2 className="section-title" id="persona-heading">
-            Choose a merchant context
+            Make it yours
           </h2>
-          <p className="section-sub">
-            Four deterministic fixture personas plus the live Sandbox merchant. The same
-            contract-validated payloads drive every card below.
-          </p>
         </div>
         <span className={`source-pill source-pill--${activePersona.dataSource}`}>
-          {activePersona.dataSource === "live" ? "Live Sandbox" : "Fixture persona"}
+          {activePersona.dataSource === "live" ? "Live PayPal data" : "Example data"}
         </span>
       </div>
 
-      <div className="persona-list" role="group" aria-label="Merchant personas">
-        {PERSONAS.map((persona) => {
-          const selected = persona.id === merchantId;
-          return (
-            <button
-              type="button"
-              key={persona.id}
-              className="persona-card"
-              aria-pressed={selected}
-              onClick={() => onPersonaChange(persona.id)}
-            >
-              <span className="persona-card-top">
-                <span className="persona-name">{persona.label}</span>
-                <span className={`persona-dot persona-dot--${persona.dataSource}`} />
-              </span>
-              <span className="persona-short">{persona.shortLabel}</span>
-              <span className="persona-description">{persona.description}</span>
-            </button>
-          );
-        })}
-      </div>
+      <form className="controls-grid controls-grid--settings" onSubmit={handleSubmit}>
+        <div className="field">
+          <label className="field-label" htmlFor="business-select">
+            Business
+          </label>
+          <select
+            id="business-select"
+            className="select select--field"
+            value={merchantId}
+            onChange={(event) => {
+              const next = PERSONAS.find((persona) => persona.id === event.target.value);
+              if (next !== undefined) onPersonaChange(next.id);
+            }}
+            aria-describedby="business-help"
+          >
+            <optgroup label="Live demo">
+              {PERSONAS.filter((persona) => persona.dataSource === "live").map((persona) => (
+                <option value={persona.id} key={persona.id}>
+                  {persona.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Example businesses">
+              {PERSONAS.filter((persona) => persona.dataSource === "fixture").map((persona) => (
+                <option value={persona.id} key={persona.id}>
+                  {persona.label}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          <p className="field-hint" id="business-help">
+            {activePersona.description}
+          </p>
+        </div>
 
-      <form className="controls-grid" onSubmit={handleSubmit}>
         <div className="field">
           <label className="field-label" htmlFor="monthly-obligations">
-            Monthly fixed obligations
+            Monthly fixed costs
           </label>
           <div className={`money-input${obligationsError !== null ? " money-input--error" : ""}`}>
             <span className="money-prefix" aria-hidden="true">
@@ -103,14 +111,14 @@ export function PersonaBar({
           >
             {obligationsError ??
               (obligationsSource === "TRAILING_3M_WITHDRAWAL_AVG"
-                ? "Using the trailing 3-month withdrawal average until you apply a value."
-                : "Integer cents on the wire. The engine owns the buffer math.")}
+                ? "Estimated from your last 3 months of withdrawals."
+                : "Rent, software, insurance: what you pay every month.")}
           </p>
         </div>
 
         <div className="field">
           <span className="field-label" id="risk-label">
-            Risk profile
+            How cautious?
           </span>
           <div className="segmented" role="group" aria-labelledby="risk-label">
             {RISK_PROFILES.map((option) => (
@@ -124,24 +132,18 @@ export function PersonaBar({
               >
                 <span>{option.label}</span>
                 <small>
-                  {option.id === "CONSERVATIVE" ? "6" : option.id === "BALANCED" ? "4" : "3"}{" "}
-                  tranches
+                  {option.id === "CONSERVATIVE" ? "6" : option.id === "BALANCED" ? "4" : "3"} steps
                 </small>
               </button>
             ))}
           </div>
-          <p className="field-hint">
-            Risk profile changes the allocation bands and the number of staged tranches.
-          </p>
+          <p className="field-hint">More cautious keeps more in cash and invests more slowly.</p>
         </div>
 
         <div className="field field--action">
           <button type="submit" className="button button--primary" disabled={busy}>
-            {busy ? "Recomputing…" : "Apply & recompute"}
+            {busy ? "Updating…" : "Update"}
           </button>
-          <p className="field-hint field-hint--right">
-            POST /api/plan · deterministic engine output only
-          </p>
         </div>
       </form>
     </section>

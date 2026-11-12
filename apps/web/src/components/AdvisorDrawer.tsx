@@ -14,6 +14,7 @@ import type {
 import { describeApiError, fetchAdvisor } from "@/lib/api";
 import {
   formatCents,
+  formatDaysFromToday,
   formatIsoDateTime,
   formatToolName,
   formatWholePercent,
@@ -218,7 +219,7 @@ export function AdvisorDrawer({
               <section className="drawer-section" aria-labelledby="advisor-bands-title">
                 <h3 id="advisor-bands-title">Allocation bands</h3>
                 <p className="drawer-section-sub">
-                  Percent-of-surplus bands from the engine. Educational illustration only.
+                  How the safe amount could be split. Educational illustration only.
                 </p>
                 {plan === null ? (
                   <EmptyPanel title="No allocation plan loaded">
@@ -229,10 +230,10 @@ export function AdvisorDrawer({
                     {plan.highVolatilityShiftApplied ? (
                       <div className="inline-alert inline-alert--warn" role="note">
                         <div>
-                          <strong>High-volatility shift applied.</strong>
+                          <strong>Extra caution for uneven income.</strong>
                           <p>
-                            The engine moved 10 percentage points from the broad equity index band
-                            to cash and money-market instruments.
+                            Because your income swings a lot, 10% more of the split stays in cash
+                            instead of stock index funds.
                           </p>
                         </div>
                       </div>
@@ -248,7 +249,7 @@ export function AdvisorDrawer({
                           </div>
                           <p className="band-range">
                             {formatWholePercent(band.minPct)}–{formatWholePercent(band.maxPct)}{" "}
-                            range · {formatWholePercent(band.targetMidpointPct)} midpoint
+                            range · aim for {formatWholePercent(band.targetMidpointPct)}
                           </p>
                           <div className="band-bar" aria-hidden="true">
                             <span
@@ -268,22 +269,22 @@ export function AdvisorDrawer({
               </section>
 
               <section className="drawer-section" aria-labelledby="advisor-staging-title">
-                <h3 id="advisor-staging-title">Staged allocation</h3>
+                <h3 id="advisor-staging-title">When to invest</h3>
                 <p className="drawer-section-sub">
-                  Illustrative tranches. Surplus never moves money or executes a trade.
+                  An example schedule. Surplus never moves money or makes a trade for you.
                 </p>
                 {plan === null ? (
                   <EmptyPanel title="No staging schedule loaded">
-                    <p>Recompute the dashboard plan to see the tranche table.</p>
+                    <p>Update your numbers to see the step-by-step plan.</p>
                   </EmptyPanel>
                 ) : (
                   <div className="staging-table-wrap">
                     <table className="staging-table">
-                      <caption className="sr-only">Staged allocation tranches</caption>
+                      <caption className="sr-only">Investing steps</caption>
                       <thead>
                         <tr>
-                          <th scope="col">Tranche</th>
-                          <th scope="col">Execute after</th>
+                          <th scope="col">Step</th>
+                          <th scope="col">When</th>
                           <th scope="col" className="numeric">
                             Amount
                           </th>
@@ -292,12 +293,8 @@ export function AdvisorDrawer({
                       <tbody>
                         {plan.stagingSchedule.map((entry) => (
                           <tr key={entry.trancheNumber}>
-                            <th scope="row">T{entry.trancheNumber}</th>
-                            <td>
-                              {entry.executeAfterDays === 0
-                                ? "Now"
-                                : `${entry.executeAfterDays} days`}
-                            </td>
+                            <th scope="row">{entry.trancheNumber}</th>
+                            <td>{formatDaysFromToday(entry.executeAfterDays)}</td>
                             <td className="numeric">{formatCents(entry.amountCents)}</td>
                           </tr>
                         ))}
