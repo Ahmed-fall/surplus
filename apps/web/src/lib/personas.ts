@@ -54,7 +54,9 @@ export const PERSONAS = [
   },
 ] as const satisfies readonly PersonaOption[];
 
-export const DEFAULT_PERSONA_ID: MerchantId = PERSONAS[0].id;
+// Open on a populated fixture persona so the first screen shows a full model;
+// the live merchant starts empty until a Sandbox payment arrives.
+export const DEFAULT_PERSONA_ID: MerchantId = "persona_steady_retainer";
 
 export function personaById(id: MerchantId): PersonaOption {
   return PERSONAS.find((persona) => persona.id === id) ?? PERSONAS[0];

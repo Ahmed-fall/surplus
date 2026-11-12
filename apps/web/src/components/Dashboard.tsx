@@ -15,7 +15,7 @@ import {
   type EventStreamStatus,
   type PlanBundle,
 } from "@/lib/api";
-import { centsToDollarInput, parseDollarsToCents } from "@/lib/format";
+import { centsToDollarInput, formatCents, formatMonths, parseDollarsToCents } from "@/lib/format";
 import { DEFAULT_PERSONA_ID, personaById } from "@/lib/personas";
 import { appEventPresentation } from "@/lib/events";
 import { AdvisorDrawer } from "./AdvisorDrawer";
@@ -216,10 +216,28 @@ export function Dashboard() {
             </p>
           </div>
           <div className="hero-side">
-            <div className="hero-stat">
-              <span className="hero-stat-label">Active merchant</span>
-              <strong>{activePersona.label}</strong>
-              <span className="hero-stat-note">{activePersona.description}</span>
+            <div
+              className={`hero-stat hero-stat--kpi${highlight ? " hero-stat--live" : ""}`}
+              aria-live="polite"
+            >
+              <span className="hero-stat-label">Safe to invest now · {activePersona.label}</span>
+              {bundle !== null ? (
+                <>
+                  <strong className="hero-kpi">
+                    {formatCents(bundle.surplus.safeSurplusCents)}
+                  </strong>
+                  <span className="hero-stat-note">
+                    {formatCents(bundle.surplus.availableBalanceCents)} balance −{" "}
+                    {formatCents(bundle.surplus.bufferTargetCents)} buffer (
+                    {formatMonths(bundle.surplus.bufferMonths)}) −{" "}
+                    {formatCents(bundle.surplus.riskReserveCents)} risk reserve
+                  </span>
+                </>
+              ) : (
+                <strong className="hero-kpi hero-kpi--pending">
+                  {loading ? "Computing…" : "—"}
+                </strong>
+              )}
             </div>
             <div className="hero-actions">
               <button
@@ -283,6 +301,29 @@ export function Dashboard() {
 
         {bundle === null && !loading && error !== null ? (
           <ErrorPanel message={error} onRetry={() => setReloadToken((current) => current + 1)} />
+        ) : null}
+
+        {activePersona.dataSource === "live" &&
+        transactions !== null &&
+        transactions.length === 0 ? (
+          <section className="card live-cta" aria-labelledby="live-cta-title">
+            <div>
+              <p className="section-kicker">Live PayPal Sandbox</p>
+              <h2 id="live-cta-title">This merchant fills from real Sandbox payments</h2>
+              <p className="live-cta-copy">
+                Nothing is simulated here. Make a $1,200.00 Sandbox payment and watch the verified
+                webhook update the surplus on this page within seconds, without a reload.
+              </p>
+            </div>
+            <a
+              className="button button--primary"
+              href="/pay-merchant"
+              target="_blank"
+              rel="noopener"
+            >
+              Make a Sandbox payment
+            </a>
+          </section>
         ) : null}
 
         {bundle !== null ? (
