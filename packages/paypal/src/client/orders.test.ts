@@ -267,6 +267,76 @@ describe("PayPalOrdersClient.captureOrder", () => {
     }
   });
 
+  it("reuses one PayPal-Request-Id across capture retries", async () => {
+    const responses = [makeJsonResponse({}, 503), makeJsonResponse(captureResponse())];
+    const spy = mockFetch({ "/capture": () => responses.shift() ?? makeJsonResponse({}, 500) });
+
+    await expect(new PayPalOrdersClient(config()).captureOrder("ORDER-1")).resolves.toMatchObject({
+      captureId: "CAP-1",
+    });
+
+    const ids = spy.mock.calls
+      .filter(([input]) => fetchUrl(input).includes("/capture"))
+      .map(([, init]) => (init?.headers as Record<string, string>)["PayPal-Request-Id"]);
+    expect(ids).toHaveLength(2);
+    expect(ids[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids[1]).toBe(ids[0]);
+  });
+
+  it("exposes PayPal's issue code but never its free text", async () => {
+    mockFetch({
+      "/capture": () =>
+        makeJsonResponse(
+          {
+            name: "UNPROCESSABLE_ENTITY",
+            message: MALICIOUS,
+            details: [{ issue: "ORDER_NOT_APPROVED", description: MALICIOUS }],
+          },
+          422,
+        ),
+    });
+
+    const error = await new PayPalOrdersClient(config())
+      .captureOrder("ORDER-1")
+      .catch((e: unknown) => e);
+    expect(error).toMatchObject({ statusCode: 422, issue: "ORDER_NOT_APPROVED" });
+    expect((error as Error).message).toContain("ORDER_NOT_APPROVED");
+    expect((error as Error).message).not.toContain(MALICIOUS);
+  });
+
+  it("drops an issue value that is not an upper-snake-case code", async () => {
+    mockFetch({
+      "/capture": () => makeJsonResponse({ details: [{ issue: MALICIOUS }] }, 422),
+    });
+
+    const error = await new PayPalOrdersClient(config())
+      .captureOrder("ORDER-1")
+      .catch((e: unknown) => e);
+    expect((error as PayPalError).issue).toBeUndefined();
+    expect((error as Error).message).not.toContain(MALICIOUS);
+  });
+
+  it("reads back the existing capture when the order is already captured", async () => {
+    const spy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = fetchUrl(input);
+      if (url.includes("/v1/oauth2/token")) return makeTokenResponse();
+      if (url.endsWith("/v2/checkout/orders/ORDER-1/capture")) {
+        return makeJsonResponse({ details: [{ issue: "ORDER_ALREADY_CAPTURED" }] }, 422);
+      }
+      if (url.endsWith("/v2/checkout/orders/ORDER-1") && (init?.method ?? "GET") === "GET") {
+        return makeJsonResponse(captureResponse());
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    await expect(new PayPalOrdersClient(config()).captureOrder("ORDER-1")).resolves.toMatchObject({
+      captureId: "CAP-1",
+      grossCents: 120000,
+      netCents: 116470,
+    });
+    expect(spy.mock.calls.some(([input]) => fetchUrl(input).endsWith("/ORDER-1"))).toBe(true);
+  });
+
   it("rejects a malformed capture response", async () => {
     mockFetch({
       "/capture": () =>

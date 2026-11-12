@@ -110,6 +110,23 @@ function isRetryable(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
+const ISSUE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
+
+/**
+ * Extracts PayPal's machine-readable issue code (`details[0].issue`, else
+ * `name`) from an error body. Only upper-snake-case codes pass, so PayPal free
+ * text (messages, descriptions) can never leak through.
+ */
+async function readIssue(res: Response): Promise<string | undefined> {
+  try {
+    const body = (await res.json()) as { name?: unknown; details?: Array<{ issue?: unknown }> };
+    const candidate = body.details?.[0]?.issue ?? body.name;
+    return typeof candidate === "string" && ISSUE_PATTERN.test(candidate) ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // PaypalClient
 // ---------------------------------------------------------------------------
@@ -233,7 +250,7 @@ export class PaypalClient {
    */
   protected async request<T>(
     path: string,
-    options?: { method?: string; body?: string; rawBody?: boolean },
+    options?: { method?: string; body?: string; rawBody?: boolean; requestId?: string },
   ): Promise<T> {
     const url = this.#resolveRequestUrl(path);
     const token = await this.getAccessToken();
@@ -253,6 +270,8 @@ export class PaypalClient {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
             Accept: "application/json",
+            // Same id on every retry, so PayPal replays instead of repeating a POST.
+            ...(options?.requestId === undefined ? {} : { "PayPal-Request-Id": options.requestId }),
           },
           body: options?.body,
           signal: AbortSignal.timeout(this.timeoutMs),
@@ -277,7 +296,13 @@ export class PaypalClient {
       }
 
       // Non-retryable 4xx (excluding 429 caught above)
-      throw new PayPalError("HTTP_ERROR", `HTTP ${res.status} from ${path}`, res.status);
+      const issue = await readIssue(res);
+      throw new PayPalError(
+        "HTTP_ERROR",
+        `HTTP ${res.status} from ${path}${issue === undefined ? "" : ` (${issue})`}`,
+        res.status,
+        issue,
+      );
     }
 
     throw (
