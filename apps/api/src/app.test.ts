@@ -315,13 +315,21 @@ describe("POST /api/demo/checkout/*", () => {
       .send({ amountCents: 120000 });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ orderId: "ORD-1", status: "CREATED" });
-    expect(createOrder).toHaveBeenCalledWith(120000);
+    expect(createOrder).toHaveBeenCalledWith(
+      120000,
+      "USD",
+      expect.objectContaining({ returnUrl: expect.stringContaining("/pay-merchant") }),
+    );
   });
 
   it("create defaults the amount to the $1,200 demo price", async () => {
     const res = await request(demoApp(client)).post("/api/demo/checkout/create").send({});
     expect(res.status).toBe(200);
-    expect(createOrder).toHaveBeenCalledWith(120000);
+    expect(createOrder).toHaveBeenCalledWith(
+      120000,
+      "USD",
+      expect.objectContaining({ returnUrl: expect.stringContaining("/pay-merchant") }),
+    );
   });
 
   it("create rejects non-positive amounts with 400", async () => {
@@ -337,7 +345,7 @@ describe("POST /api/demo/checkout/*", () => {
     createOrder.mockRejectedValueOnce(new Error("paypal unreachable"));
     const res = await request(demoApp(client)).post("/api/demo/checkout/create").send({});
     expect(res.status).toBe(502);
-    expect(res.body).toEqual({ error: "paypal_error" });
+    expect(res.body).toEqual({ error: "paypal_error", reason: "PAYPAL_UNAVAILABLE" });
   });
 
   it("capture returns 200 with the capture result and forwards orderId", async () => {
@@ -370,7 +378,7 @@ describe("POST /api/demo/checkout/*", () => {
       .post("/api/demo/checkout/capture")
       .send({ orderId: "ORD-1" });
     expect(res.status).toBe(502);
-    expect(res.body).toEqual({ error: "paypal_error" });
+    expect(res.body).toEqual({ error: "paypal_error", reason: "PAYPAL_UNAVAILABLE" });
   });
 
   it("routes stay unmounted without a client (no dead endpoints)", async () => {

@@ -53,7 +53,7 @@ export interface BuildAppOptions {
   /** Enables POST /api/admin/reset when a non-empty token is supplied. */
   admin?: { token: string; reset: () => void | Promise<void> };
   /** R2's PayPal Orders client; mounts the live demo checkout endpoints when supplied. */
-  demoCheckout?: { orders: PayPalOrdersClient };
+  demoCheckout?: { orders: Pick<PayPalOrdersClient, "createOrder" | "captureOrder"> };
   webOrigin?: string;
 }
 
@@ -179,7 +179,10 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   // Live demo (C-10): mounted only when server.ts injects an Orders client,
   // which keeps credentialless deployments free of dead endpoints.
   if (options.demoCheckout !== undefined) {
-    const demoCheckout = createDemoCheckoutHandlers({ orders: options.demoCheckout.orders });
+    const demoCheckout = createDemoCheckoutHandlers({
+      orders: options.demoCheckout.orders,
+      webOrigin,
+    });
     app.post("/api/demo/checkout/create", handle(demoCheckout.create));
     app.post("/api/demo/checkout/capture", handle(demoCheckout.capture));
   }

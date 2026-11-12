@@ -12,11 +12,11 @@
   --muted: #5d746f;
   --border: #d6e3df;
   --border-strong: #b9cec8;
-  --brand: #0f7a68;
-  --brand-strong: #0a5f51;
-  --brand-deep: #0b2f2a;
-  --brand-soft: #d8f1ea;
-  --brand-mist: #eef9f6;
+  --brand: #0070ba;
+  --brand-strong: #003087;
+  --brand-deep: #001c54;
+  --brand-soft: #e6f0fa;
+  --brand-mist: #f0f6fd;
   --accent: #d97706;
   --accent-soft: #fdf1dc;
   --danger: #b42318;
@@ -117,6 +117,39 @@ code,
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  animation: fade-in 300ms ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 112, 186, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(0, 112, 186, 0);
+  }
 }
 
 /* ----------------------------------------------------------------------- */
@@ -731,6 +764,15 @@ code,
   border: 1px solid var(--border);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
+  animation: slide-up 320ms ease-out;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .card-head {
