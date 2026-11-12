@@ -8,7 +8,7 @@
  * ids, payer names) never leaves this module.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { PayPalError } from "./errors.js";
 import { PaypalClient } from "./PaypalClient.js";
 import type { PayPalCaptureResponse, PayPalOrderResponse } from "./types.js";
@@ -131,16 +131,30 @@ export class PayPalOrdersClient extends PaypalClient {
     return { orderId: data.id, status: data.status ?? "UNKNOWN", approvalUrl };
   }
 
-  /** POST /v2/checkout/orders/{id}/capture — capture and return integer cents. */
+  /**
+   * POST /v2/checkout/orders/{id}/capture — capture and return integer cents.
+   *
+   * One PayPal-Request-Id is reused across retries, so a timed-out attempt that
+   * PayPal already processed is replayed rather than captured twice. If the
+   * order was captured by an earlier call, the existing capture is read back.
+   */
   async captureOrder(orderId: string): Promise<PayPalCapture> {
     if (orderId.trim().length === 0) {
       throw new PayPalError("INVALID_AMOUNT", "orderId is required");
     }
 
-    const data = await this.request<PayPalCaptureResponse>(
-      `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
-      { method: "POST", body: "{}" },
-    );
+    const orderPath = `/v2/checkout/orders/${encodeURIComponent(orderId)}`;
+    let data: PayPalCaptureResponse;
+    try {
+      data = await this.request<PayPalCaptureResponse>(`${orderPath}/capture`, {
+        method: "POST",
+        body: "{}",
+        requestId: randomUUID(),
+      });
+    } catch (err) {
+      if (!(err instanceof PayPalError && err.issue === "ORDER_ALREADY_CAPTURED")) throw err;
+      data = await this.request<PayPalCaptureResponse>(orderPath);
+    }
 
     const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
     if (capture === undefined) {

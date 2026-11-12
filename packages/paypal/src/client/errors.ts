@@ -19,6 +19,8 @@ export class PayPalError extends Error {
     public readonly code: PayPalErrorCode,
     message: string,
     public readonly statusCode?: number,
+    /** PayPal's fixed issue code (e.g. ORDER_NOT_APPROVED), never free text. */
+    public readonly issue?: string,
   ) {
     super(message);
     this.name = "PayPalError";
