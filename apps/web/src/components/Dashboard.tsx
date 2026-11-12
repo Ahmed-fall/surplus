@@ -4,7 +4,7 @@
 // It orchestrates contract-validated API calls, the SSE live stream, persona
 // controls, the advisor drawer, and the What-If simulator. No money math and no
 // scenario math lives in this component.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
 import type { AppEvent, MerchantId, NormalizedTransaction, RiskProfile } from "@surplus/contracts";
 import {
   API_BASE_URL,
@@ -24,26 +24,19 @@ import { CashFlowChart } from "./CashFlowChart";
 import { LiveEventToast } from "./LiveEventToast";
 import { PersonaBar } from "./PersonaBar";
 import { ScenarioSimulator } from "./ScenarioSimulator";
-import { SummaryCards } from "./SummaryCards";
+import { RiskSignals, SummaryCards } from "./SummaryCards";
 import { SurplusBreakdown } from "./SurplusBreakdown";
 import { DashboardSkeleton, ErrorPanel, InlineError } from "./ui";
 
 const DEFAULT_PERSONA = personaById(DEFAULT_PERSONA_ID);
 
-const HOW_IT_WORKS = [
-  {
-    title: "Pick a business",
-    copy: "Start with an example business, or the live demo connected to PayPal Sandbox.",
-  },
-  {
-    title: "Enter your monthly costs",
-    copy: "Tell us what you pay every month and how cautious you want to be.",
-  },
-  {
-    title: "See what is safe to invest",
-    copy: "We keep a cushion for slow months and disputes, then show the rest as a step-by-step plan.",
-  },
+const DETAIL_TABS = [
+  { id: "cashflow", label: "Cash flow" },
+  { id: "transactions", label: "Transactions" },
+  { id: "whatif", label: "What if?" },
 ] as const;
+
+type DetailTab = (typeof DETAIL_TABS)[number]["id"];
 
 export function Dashboard() {
   const [merchantId, setMerchantId] = useState<MerchantId>(DEFAULT_PERSONA_ID);
@@ -64,8 +57,19 @@ export function Dashboard() {
   const [toastEvent, setToastEvent] = useState<AppEvent | null>(null);
   const [highlight, setHighlight] = useState(false);
   const [sseStatus, setSseStatus] = useState<EventStreamStatus>("connecting");
+  const [detailTab, setDetailTab] = useState<DetailTab>("cashflow");
 
   const activePersona = personaById(merchantId);
+
+  function handleTabKey(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    const index = DETAIL_TABS.findIndex((tab) => tab.id === detailTab);
+    const step = event.key === "ArrowRight" ? 1 : DETAIL_TABS.length - 1;
+    const next = DETAIL_TABS[(index + step) % DETAIL_TABS.length];
+    if (next === undefined) return;
+    setDetailTab(next.id);
+    document.getElementById(`tab-${next.id}`)?.focus();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -284,20 +288,6 @@ export function Dashboard() {
           </div>
         </section>
 
-        <ol className="how-it-works" aria-label="How Surplus works">
-          {HOW_IT_WORKS.map((step, index) => (
-            <li key={step.title} className="how-step">
-              <span className="how-step-num" aria-hidden="true">
-                {index + 1}
-              </span>
-              <div>
-                <strong>{step.title}</strong>
-                <span>{step.copy}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-
         <PersonaBar
           merchantId={merchantId}
           obligationsInput={obligationsInput}
@@ -356,26 +346,70 @@ export function Dashboard() {
 
         {bundle !== null ? (
           <div className="dashboard-content">
-            <SummaryCards
-              summary={bundle.summary}
-              surplus={bundle.surplus}
-              liveEvent={lastRibbonEvent}
-              highlight={highlight}
-            />
-
-            <div className="content-grid">
-              <CashFlowChart summary={bundle.summary} />
+            <div className="content-grid content-grid--answer">
               <SurplusBreakdown surplus={bundle.surplus} plan={bundle.plan} />
+              <RiskSignals summary={bundle.summary} surplus={bundle.surplus} />
             </div>
 
-            <AuditTable transactions={transactions} />
+            <section className="detail-tabs" aria-label="More details">
+              <div className="tab-list" role="tablist" aria-label="More details">
+                {DETAIL_TABS.map((tab) => (
+                  <button
+                    key={tab.id}
+                    id={`tab-${tab.id}`}
+                    type="button"
+                    role="tab"
+                    className="tab"
+                    aria-selected={detailTab === tab.id}
+                    aria-controls={`panel-${tab.id}`}
+                    tabIndex={detailTab === tab.id ? 0 : -1}
+                    onClick={() => setDetailTab(tab.id)}
+                    onKeyDown={handleTabKey}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
 
-            <ScenarioSimulator
-              key={`${merchantId}-${obligationsCents}-${riskProfile}`}
-              merchantId={merchantId}
-              monthlyObligationsCents={obligationsCents}
-              riskProfile={riskProfile}
-            />
+              {/* Panels stay mounted so the what-if keeps its inputs between tabs. */}
+              <div
+                id="panel-cashflow"
+                role="tabpanel"
+                aria-labelledby="tab-cashflow"
+                className="tab-panel"
+                hidden={detailTab !== "cashflow"}
+              >
+                <SummaryCards
+                  summary={bundle.summary}
+                  liveEvent={lastRibbonEvent}
+                  highlight={highlight}
+                />
+                <CashFlowChart summary={bundle.summary} />
+              </div>
+              <div
+                id="panel-transactions"
+                role="tabpanel"
+                aria-labelledby="tab-transactions"
+                className="tab-panel"
+                hidden={detailTab !== "transactions"}
+              >
+                <AuditTable transactions={transactions} />
+              </div>
+              <div
+                id="panel-whatif"
+                role="tabpanel"
+                aria-labelledby="tab-whatif"
+                className="tab-panel"
+                hidden={detailTab !== "whatif"}
+              >
+                <ScenarioSimulator
+                  key={`${merchantId}-${obligationsCents}-${riskProfile}`}
+                  merchantId={merchantId}
+                  monthlyObligationsCents={obligationsCents}
+                  riskProfile={riskProfile}
+                />
+              </div>
+            </section>
           </div>
         ) : null}
 

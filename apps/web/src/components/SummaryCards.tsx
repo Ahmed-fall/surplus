@@ -1,4 +1,4 @@
-// Owner: R5. Week / month / year summary cards and risk-signal strip.
+// Owner: R5. Week / month / year summary cards and the risk-signal card.
 import type {
   AppEvent,
   CashFlowSummary,
@@ -20,7 +20,6 @@ import { appEventPresentation } from "@/lib/events";
 
 interface SummaryCardsProps {
   summary: CashFlowSummary;
-  surplus: SurplusResult;
   liveEvent: AppEvent | null;
   highlight: boolean;
 }
@@ -79,7 +78,7 @@ function WindowCard({
   );
 }
 
-export function SummaryCards({ summary, surplus, liveEvent, highlight }: SummaryCardsProps) {
+export function SummaryCards({ summary, liveEvent, highlight }: SummaryCardsProps) {
   const eventCopy = liveEvent === null ? null : appEventPresentation(liveEvent.type);
   const showLiveRibbon = liveEvent !== null && liveEvent.type !== "plan.updated";
 
@@ -113,7 +112,7 @@ export function SummaryCards({ summary, surplus, liveEvent, highlight }: Summary
         </div>
       ) : null}
 
-      <div className="summary-grid">
+      <div className="summary-grid summary-grid--windows">
         {WINDOWS.map((window) => (
           <WindowCard
             key={window.key}
@@ -122,48 +121,56 @@ export function SummaryCards({ summary, surplus, liveEvent, highlight }: Summary
             highlight={highlight}
           />
         ))}
-
-        <article className="card summary-card summary-card--signals">
-          <div className="summary-card-head">
-            <div>
-              <p className="card-kicker">What sizes your cushion</p>
-              <h3 className="card-title">Your risk at a glance</h3>
-            </div>
-          </div>
-          <dl className="signal-list">
-            <div>
-              <dt>Income</dt>
-              <dd title={`Swing score ${summary.cv.toFixed(2)}`}>
-                {describeIncomeSwings(summary.cv)}
-              </dd>
-            </div>
-            <div>
-              <dt>Typical month, after fees</dt>
-              <dd>{formatCents(summary.baselineMonthlyNetCents)}</dd>
-            </div>
-            <div>
-              <dt>Refunds (last 90 days)</dt>
-              <dd>{formatFriendlyPercent(summary.refundRate90d)} of sales</dd>
-            </div>
-            <div>
-              <dt>Open disputes</dt>
-              <dd>
-                {summary.openDisputes.count === 0
-                  ? "None"
-                  : `${summary.openDisputes.count} · ${formatCents(summary.openDisputes.totalAmountCents)}`}
-              </dd>
-            </div>
-            <div>
-              <dt>Safety cushion</dt>
-              <dd>{formatMonths(surplus.bufferMonths)} of costs</dd>
-            </div>
-          </dl>
-          <p className="summary-footnote">
-            The more your income swings and the more refunds you get, the bigger the cushion we keep
-            before anything is invested.
-          </p>
-        </article>
       </div>
     </section>
+  );
+}
+
+export function RiskSignals({
+  summary,
+  surplus,
+}: {
+  summary: CashFlowSummary;
+  surplus: SurplusResult;
+}) {
+  return (
+    <article className="card summary-card summary-card--signals">
+      <div className="summary-card-head">
+        <div>
+          <p className="card-kicker">What sizes your cushion</p>
+          <h3 className="card-title">Your risk at a glance</h3>
+        </div>
+      </div>
+      <dl className="signal-list">
+        <div>
+          <dt>Income</dt>
+          <dd title={`Swing score ${summary.cv.toFixed(2)}`}>{describeIncomeSwings(summary.cv)}</dd>
+        </div>
+        <div>
+          <dt>Typical month, after fees</dt>
+          <dd>{formatCents(summary.baselineMonthlyNetCents)}</dd>
+        </div>
+        <div>
+          <dt>Refunds (last 90 days)</dt>
+          <dd>{formatFriendlyPercent(summary.refundRate90d)} of sales</dd>
+        </div>
+        <div>
+          <dt>Open disputes</dt>
+          <dd>
+            {summary.openDisputes.count === 0
+              ? "None"
+              : `${summary.openDisputes.count} · ${formatCents(summary.openDisputes.totalAmountCents)}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Safety cushion</dt>
+          <dd>{formatMonths(surplus.bufferMonths)} of costs</dd>
+        </div>
+      </dl>
+      <p className="summary-footnote">
+        The more your income swings and the more refunds you get, the bigger the cushion we keep
+        before anything is invested.
+      </p>
+    </article>
   );
 }

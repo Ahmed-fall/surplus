@@ -275,6 +275,19 @@ export function ScenarioSimulator({
                 </div>
               </div>
 
+              {result.deltaSafeSurplusCents === 0 && result.deltaBufferMonths === 0 ? (
+                <p className="scenario-verdict scenario-verdict--ok">
+                  {result.baselineSurplus.safeSurplusCents > 0
+                    ? "You're covered: your cushion already absorbs this, so what's safe to invest stays the same."
+                    : "This doesn't change anything: nothing is safe to invest yet either way."}
+                </p>
+              ) : result.stressedSurplus.safeSurplusCents === 0 &&
+                result.baselineSurplus.safeSurplusCents > 0 ? (
+                <p className="scenario-verdict scenario-verdict--warn">
+                  In this case you'd want to keep everything as cushion and hold off investing.
+                </p>
+              ) : null}
+
               <div className="delta-row">
                 <div
                   className={`delta-card ${

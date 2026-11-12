@@ -1,4 +1,4 @@
-// Owner: R5. Persona switcher and onboarding controls (obligations + risk profile).
+// Owner: R5. Settings bar: business switcher, monthly costs and risk profile.
 import type { FormEvent } from "react";
 import type { MerchantId, ObligationsSource, RiskProfile } from "@surplus/contracts";
 import { PERSONAS, RISK_PROFILES, personaById } from "@/lib/personas";
@@ -36,46 +36,54 @@ export function PersonaBar({
   }
 
   return (
-    <section className="persona-panel" aria-labelledby="persona-heading">
+    <section className="persona-panel persona-panel--compact" aria-labelledby="persona-heading">
       <div className="section-head section-head--compact">
         <div>
-          <p className="section-kicker">Step 1</p>
+          <p className="section-kicker">Your details</p>
           <h2 className="section-title" id="persona-heading">
-            Choose a business to explore
+            Make it yours
           </h2>
-          <p className="section-sub">
-            Four example businesses with different cash-flow patterns, plus a live demo connected to
-            PayPal Sandbox.
-          </p>
         </div>
         <span className={`source-pill source-pill--${activePersona.dataSource}`}>
           {activePersona.dataSource === "live" ? "Live PayPal data" : "Example data"}
         </span>
       </div>
 
-      <div className="persona-list" role="group" aria-label="Merchant personas">
-        {PERSONAS.map((persona) => {
-          const selected = persona.id === merchantId;
-          return (
-            <button
-              type="button"
-              key={persona.id}
-              className="persona-card"
-              aria-pressed={selected}
-              onClick={() => onPersonaChange(persona.id)}
-            >
-              <span className="persona-card-top">
-                <span className="persona-name">{persona.label}</span>
-                <span className={`persona-dot persona-dot--${persona.dataSource}`} />
-              </span>
-              <span className="persona-short">{persona.shortLabel}</span>
-              <span className="persona-description">{persona.description}</span>
-            </button>
-          );
-        })}
-      </div>
+      <form className="controls-grid controls-grid--settings" onSubmit={handleSubmit}>
+        <div className="field">
+          <label className="field-label" htmlFor="business-select">
+            Business
+          </label>
+          <select
+            id="business-select"
+            className="select select--field"
+            value={merchantId}
+            onChange={(event) => {
+              const next = PERSONAS.find((persona) => persona.id === event.target.value);
+              if (next !== undefined) onPersonaChange(next.id);
+            }}
+            aria-describedby="business-help"
+          >
+            <optgroup label="Live demo">
+              {PERSONAS.filter((persona) => persona.dataSource === "live").map((persona) => (
+                <option value={persona.id} key={persona.id}>
+                  {persona.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Example businesses">
+              {PERSONAS.filter((persona) => persona.dataSource === "fixture").map((persona) => (
+                <option value={persona.id} key={persona.id}>
+                  {persona.label}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+          <p className="field-hint" id="business-help">
+            {activePersona.description}
+          </p>
+        </div>
 
-      <form className="controls-grid" onSubmit={handleSubmit}>
         <div className="field">
           <label className="field-label" htmlFor="monthly-obligations">
             Monthly fixed costs
@@ -103,8 +111,8 @@ export function PersonaBar({
           >
             {obligationsError ??
               (obligationsSource === "TRAILING_3M_WITHDRAWAL_AVG"
-                ? "Estimated from your last 3 months of withdrawals. Enter your own amount to be precise."
-                : "Rent, software, insurance: what you pay every month no matter what.")}
+                ? "Estimated from your last 3 months of withdrawals."
+                : "Rent, software, insurance: what you pay every month.")}
           </p>
         </div>
 
@@ -129,18 +137,13 @@ export function PersonaBar({
               </button>
             ))}
           </div>
-          <p className="field-hint">
-            More cautious means more in cash and a slower, more spread-out plan.
-          </p>
+          <p className="field-hint">More cautious keeps more in cash and invests more slowly.</p>
         </div>
 
         <div className="field field--action">
           <button type="submit" className="button button--primary" disabled={busy}>
-            {busy ? "Updating…" : "Update my numbers"}
+            {busy ? "Updating…" : "Update"}
           </button>
-          <p className="field-hint field-hint--right">
-            Changing how cautious you are updates right away.
-          </p>
         </div>
       </form>
     </section>
