@@ -321,9 +321,7 @@ export function Dashboard() {
           <ErrorPanel message={error} onRetry={() => setReloadToken((current) => current + 1)} />
         ) : null}
 
-        {activePersona.dataSource === "live" &&
-        transactions !== null &&
-        transactions.length === 0 ? (
+        {activePersona.dataSource === "live" ? (
           <section className="card live-cta" aria-labelledby="live-cta-title">
             <div>
               <p className="section-kicker">Live demo</p>
